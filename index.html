@@ -1,0 +1,1208 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Mood Tune — Mood-based Music Diagnosis</title>
+<style>
+  :root{
+    --paper:#f4f0e8; --panel:#fbf9f4; --ink:#1f1d1a; --sub:#6f6a60;
+    --line:#ddd6c8; --accent:#b5432e; --accent-soft:#e8d9c9;
+  }
+  *{box-sizing:border-box; margin:0; padding:0;}
+  html,body{height:100%;}
+  body{
+    font-family:"Hiragino Kaku Gothic ProN","Yu Gothic","Noto Sans JP","Noto Sans SC","Noto Sans KR",system-ui,sans-serif;
+    color:var(--ink); line-height:1.6; -webkit-font-smoothing:antialiased;
+    background:
+      repeating-linear-gradient(0deg, rgba(31,29,26,.012) 0 1px, transparent 1px 3px),
+      radial-gradient(ellipse at 50% -10%, #f8f5ee 0%, var(--paper) 55%);
+    display:flex; justify-content:center; min-height:100vh; padding:48px 20px;
+  }
+  .serif{font-family:"Hiragino Mincho ProN","Yu Mincho","Noto Serif JP",Georgia,serif;}
+  .wrap{width:100%; max-width:600px;}
+
+  header{border-bottom:2px solid var(--ink); box-shadow:0 5px 0 -3.5px var(--ink);
+    padding-bottom:14px; margin-bottom:38px;}
+  .masthead{display:flex; justify-content:space-between; align-items:center; gap:12px;}
+  .masthead .logo{font-size:25px; letter-spacing:.06em; font-weight:600;}
+  .masthead .issue{font-size:11px; letter-spacing:.18em; color:var(--sub); text-transform:uppercase;}
+  .sub{font-size:12px; letter-spacing:.05em; color:var(--sub); margin-top:6px;}
+  .langsel{display:flex; gap:4px; flex-wrap:wrap;}
+  .langsel button{font-size:11px; letter-spacing:.03em; color:var(--sub); cursor:pointer;
+    background:transparent; border:1px solid var(--line); padding:5px 9px; border-radius:99px; transition:.15s;}
+  .langsel button:hover{border-color:var(--accent); color:var(--accent);}
+  .langsel button.on{background:var(--ink); border-color:var(--ink); color:var(--paper);}
+
+  .eyebrow{font-size:11px; letter-spacing:.22em; text-transform:uppercase; color:var(--accent); font-weight:600;}
+  h1.title{font-size:30px; line-height:1.4; font-weight:600; margin:14px 0 18px;}
+  p.lead{color:var(--sub); font-size:15px; line-height:1.95;}
+
+  .btn{display:inline-block; font-size:14px; letter-spacing:.04em; font-weight:600;
+    padding:13px 30px; border:1.5px solid var(--ink); background:var(--ink); color:var(--paper);
+    cursor:pointer; transition:.18s; text-decoration:none;}
+  .btn:hover{background:transparent; color:var(--ink);}
+  .btn.ghost{background:transparent; color:var(--ink);}
+  .btn.ghost:hover{background:var(--ink); color:var(--paper);}
+
+  .start-actions{margin-top:34px;}
+  .start-meta{margin-top:26px; padding-top:20px; border-top:1px solid var(--line);
+    display:flex; gap:30px; font-size:12px; color:var(--sub);}
+  .start-meta b{display:block; font-size:20px; color:var(--ink); font-weight:600;}
+
+  .qhead{display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;}
+  .qcount{font-size:12px; letter-spacing:.15em; color:var(--sub);}
+  .qcount .now{color:var(--ink); font-weight:600;}
+  .qaxis{font-size:11px; letter-spacing:.18em; text-transform:uppercase; color:var(--accent);}
+  .track-line{height:2px; background:var(--line); margin-bottom:40px; position:relative;}
+  .track-line i{position:absolute; left:0; top:0; height:100%; background:var(--ink); transition:width .35s;}
+
+  .question .num{font-size:13px; color:var(--accent); letter-spacing:.1em; font-weight:600;}
+  .question h2{font-size:23px; line-height:1.55; font-weight:600; margin:6px 0 30px; min-height:72px;}
+  .options{display:flex; flex-direction:column;}
+  .opt{width:100%; text-align:left; background:transparent; cursor:pointer;
+    border:none; border-top:1px solid var(--line); padding:20px 4px; font-size:16px; color:var(--ink);
+    transition:.16s; display:flex; align-items:center; gap:18px;}
+  .options .opt:last-child{border-bottom:1px solid var(--line);}
+  .opt .mark{flex:none; width:30px; height:30px; border:1.5px solid var(--line); border-radius:50%;
+    display:flex; align-items:center; justify-content:center; font-size:13px; color:var(--sub);
+    transition:.16s; font-family:Georgia,serif;}
+  .opt:hover{padding-left:14px; color:var(--accent);}
+  .opt:hover .mark{border-color:var(--accent); background:var(--accent); color:var(--paper);}
+  .back{background:none; border:none; color:var(--sub); cursor:pointer; font-size:13px;
+    margin-top:26px; letter-spacing:.05em;}
+  .back:hover{color:var(--ink);}
+
+  .res-head{border-bottom:1px solid var(--line); padding-bottom:22px; margin-bottom:24px;}
+  .stamps{display:flex; gap:8px; margin-bottom:4px;}
+  .stamps span{
+    font-family:Georgia,serif; font-size:19px; font-weight:700; color:var(--accent);
+    width:40px; height:40px; border:1.5px solid var(--accent); border-radius:3px;
+    display:flex; align-items:center; justify-content:center;
+    transform:rotate(-1.2deg); animation:stamp .4s cubic-bezier(.2,1.6,.4,1) backwards;
+  }
+  .stamps span:nth-child(2){transform:rotate(1deg); animation-delay:.08s;}
+  .stamps span:nth-child(3){transform:rotate(-.6deg); animation-delay:.16s;}
+  .stamps span:nth-child(4){transform:rotate(1.4deg); animation-delay:.24s;}
+  @keyframes stamp{from{opacity:0; transform:scale(1.6) rotate(-6deg);} to{opacity:1;}}
+  .keyhint{margin-top:14px; font-size:11px; letter-spacing:.06em; color:var(--sub);}
+  .keyhint b{display:inline-block; font-family:Georgia,serif; font-weight:600; color:var(--ink);
+    border:1px solid var(--line); border-bottom-width:2px; border-radius:4px;
+    padding:0 6px; margin:0 2px; font-size:11px; line-height:1.7; background:var(--panel);}
+  .res-name{font-size:32px; line-height:1.3; font-weight:600; margin:10px 0 6px;}
+  .res-tag{font-size:14px; color:var(--sub); letter-spacing:.02em;}
+  .res-desc{font-size:15px; line-height:2; margin-bottom:30px;}
+
+  .section-label{font-size:11px; letter-spacing:.2em; text-transform:uppercase; color:var(--accent);
+    font-weight:600; margin-bottom:16px; padding-bottom:8px; border-bottom:1px solid var(--line);}
+
+  .persona{margin-bottom:34px; padding:20px 22px; background:var(--panel);
+    border:1px solid var(--line); border-left:3px solid var(--accent);}
+  .persona-text{font-size:15px; line-height:1.95;}
+  .ptraits{display:flex; flex-wrap:wrap; gap:8px; margin-top:14px;}
+  .ptraits span{font-size:12px; color:var(--accent); letter-spacing:.03em;}
+
+  .pl-group{font-size:12px; letter-spacing:.04em; color:var(--sub); margin:18px 0 4px;
+    display:flex; align-items:center; gap:10px;}
+  .pl-group:first-child{margin-top:4px;}
+  .pl-group::after{content:""; flex:1; height:1px; background:var(--line);}
+
+  .axes{margin-bottom:34px;}
+  .axis{margin-bottom:18px;}
+  .axis .labels{display:flex; justify-content:space-between; font-size:13px; margin-bottom:7px;}
+  .axis .labels .on{font-weight:600; color:var(--ink);}
+  .axis .labels .off{color:var(--sub);}
+  .axis .meter{height:3px; background:var(--line); position:relative;}
+  .axis .meter i{position:absolute; top:-3px; width:9px; height:9px; border-radius:50%;
+    background:var(--accent); transform:translateX(-50%);}
+
+  .chem-grid{display:grid; grid-template-columns:1fr 1fr; gap:14px; margin-bottom:34px;}
+  .chem-card{border:1px solid var(--line); background:var(--panel); padding:18px 18px 16px; position:relative;}
+  .chem-card::before{content:""; position:absolute; top:0; left:0; right:0; height:3px; background:var(--accent);}
+  .chem-card.opp::before{background:var(--ink);}
+  .chem-role{font-size:11px; letter-spacing:.14em; text-transform:uppercase; color:var(--accent); font-weight:600; margin-bottom:10px;}
+  .chem-card.opp .chem-role{color:var(--ink);}
+  .chem-code{font-family:Georgia,serif; font-size:12px; letter-spacing:.35em; color:var(--sub); margin-bottom:4px;}
+  .chem-name{font-size:19px; font-weight:600; line-height:1.4; margin-bottom:10px;}
+  .chem-card p{font-size:12.5px; color:var(--sub); line-height:1.75;}
+  @media(max-width:480px){ .chem-grid{grid-template-columns:1fr;} }
+
+  .amatch{margin-bottom:34px;}
+  .arow{display:flex; gap:14px; align-items:flex-start; padding:16px 2px; border-top:1px solid var(--line);}
+  .amatch .arow:last-child{border-bottom:1px solid var(--line);}
+  .arow .arank{font-family:Georgia,serif; font-size:14px; color:var(--accent); width:22px; flex:none; padding-top:2px;}
+  .arow .ainfo{flex:1;}
+  .arow .atop{display:flex; justify-content:space-between; align-items:baseline; margin-bottom:7px;}
+  .arow .atop b{font-size:16px; font-weight:600;}
+  .arow .apct{font-family:Georgia,serif; font-size:15px; color:var(--accent); font-weight:700;}
+  .arow .ameter{height:3px; background:var(--line); margin-bottom:8px; overflow:hidden;}
+  .arow .ameter i{display:block; height:100%; background:var(--accent); transition:width .5s ease;}
+  .arow .anote{font-size:12.5px; color:var(--sub); line-height:1.6;}
+
+  .gtabs{display:flex; flex-wrap:wrap; gap:8px;}
+  .gtab{font-size:13px; letter-spacing:.04em; color:var(--sub); cursor:pointer;
+    background:transparent; border:1px solid var(--line); padding:8px 16px; border-radius:99px; transition:.16s;}
+  .gtab:hover{border-color:var(--accent); color:var(--accent);}
+  .gtab.on{background:var(--ink); border-color:var(--ink); color:var(--paper);}
+
+  .tracks{margin-bottom:34px;}
+  .trow,.arow{animation:rowin .4s ease backwards; animation-delay:calc(var(--i,0)*35ms);}
+  @keyframes rowin{from{opacity:0; transform:translateY(6px);} to{opacity:1; transform:none;}}
+  .trow{display:flex; align-items:baseline; gap:16px; padding:15px 2px; border-top:1px solid var(--line);}
+  .tracks .trow:last-child{border-bottom:1px solid var(--line);}
+  .trow .tn{font-family:Georgia,serif; font-size:14px; color:var(--accent); width:24px; flex:none;}
+  .trow .tt{font-size:16px; font-weight:600;}
+  .trow .ta{font-size:13px; color:var(--sub); margin-left:auto; text-align:right;}
+
+  .res-actions{display:flex; gap:12px; flex-wrap:wrap; align-items:center;}
+  .copy{background:none; border:none; color:var(--sub); cursor:pointer; font-size:13px;
+    text-decoration:underline; text-underline-offset:3px;}
+  .copy:hover{color:var(--ink);}
+
+  footer.foot{margin-top:46px; padding-top:16px; border-top:1px solid var(--line);
+    font-size:11px; letter-spacing:.08em; color:var(--sub); text-align:center;}
+
+  .hidden{display:none;}
+  .fade{animation:fade .4s ease;}
+  @keyframes fade{from{opacity:0; transform:translateY(8px)} to{opacity:1; transform:none}}
+
+  @media(max-width:480px){
+    body{padding:32px 18px;}
+    .res-name{font-size:27px;} h1.title{font-size:25px;}
+    .trow .ta{margin-left:0; text-align:left; width:100%;} .trow{flex-wrap:wrap;}
+    .masthead{flex-wrap:wrap;}
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <div class="masthead">
+      <span class="logo serif">Mood Tune</span>
+      <span class="langsel" id="langsel"></span>
+    </div>
+    <div class="sub" id="brandSub"></div>
+  </header>
+
+  <!-- START -->
+  <section id="start" class="fade">
+    <div class="eyebrow" id="startEyebrow"></div>
+    <h1 class="title serif" id="startTitle"></h1>
+    <p class="lead" id="startLead"></p>
+    <div class="start-actions">
+      <button class="btn" id="startBtn" onclick="start()"></button>
+    </div>
+    <div class="start-meta">
+      <div><b>20</b><span id="metaQ"></span></div>
+      <div><b>4</b><span id="metaAxis"></span></div>
+      <div><b>16</b><span id="metaType"></span></div>
+    </div>
+  </section>
+
+  <!-- QUIZ -->
+  <section id="quiz" class="hidden">
+    <div class="qhead">
+      <span class="qcount"><span class="now" id="qnow">01</span> / 20</span>
+      <span class="qaxis" id="qaxis"></span>
+    </div>
+    <div class="track-line"><i id="tline"></i></div>
+    <div class="question">
+      <div class="num" id="qnum"></div>
+      <h2 id="qtext"></h2>
+      <div class="options" id="opts"></div>
+      <div class="keyhint" id="keyhint"></div>
+    </div>
+    <button class="back" id="backBtn" onclick="back()"></button>
+  </section>
+
+  <!-- RESULT -->
+  <section id="result" class="hidden"></section>
+
+  <footer class="foot" id="footer"></footer>
+</div>
+
+<script>
+/* =========================================================
+   言語に依存しない構造（コード・楽曲・コードはユニバーサル）
+   ========================================================= */
+const LANGS = [["ja","日本語"],["en","English"],["zh","中文"],["ko","한국어"],["es","Español"]];
+const AX_NAME = {A:"TENSION", B:"FEELING", C:"TEXTURE", D:"CURIOSITY"};
+const GENRE_KEYS = ["west","jpop","kpop","rock","vocaloid","edm","anime","hiphop","classical","jazz"];
+
+// 質問の構造: 軸と各選択肢の値（テキストは言語ファイルから）。20問・各軸5問。
+const QDEF = [
+  {axis:'A', a:'A', b:'C'},{axis:'B', a:'H', b:'E'},{axis:'C', a:'N', b:'D'},{axis:'D', a:'O', b:'X'},
+  {axis:'A', a:'A', b:'C'},{axis:'B', a:'H', b:'E'},{axis:'C', a:'N', b:'D'},{axis:'D', a:'O', b:'X'},
+  {axis:'A', a:'A', b:'C'},{axis:'B', a:'H', b:'E'},{axis:'C', a:'N', b:'D'},{axis:'D', a:'O', b:'X'},
+  {axis:'A', a:'A', b:'C'},{axis:'A', a:'A', b:'C'},{axis:'B', a:'H', b:'E'},{axis:'B', a:'H', b:'E'},
+  {axis:'C', a:'N', b:'D'},{axis:'C', a:'N', b:'D'},{axis:'D', a:'O', b:'X'},{axis:'D', a:'O', b:'X'},
+];
+
+// 楽曲（固有名詞なので共通）
+const GENRE_POOLS = {
+  west:{
+    AH:[["Dua Lipa","Levitating"],["Bruno Mars","24K Magic"],["Pharrell Williams","Happy"],["Justin Timberlake","Can't Stop the Feeling!"],["Mark Ronson","Uptown Funk"],["Maroon 5","Sugar"],["Katy Perry","Roar"],["Taylor Swift","Shake It Off"],["Lizzo","Juice"],["Beyoncé","Crazy in Love"],["Daft Punk","Get Lucky"],["Harry Styles","As It Was"]],
+    AE:[["The Killers","Mr. Brightside"],["Imagine Dragons","Believer"],["Florence + The Machine","Shake It Out"],["OneRepublic","Counting Stars"],["Coldplay","Viva la Vida"],["Sia","Chandelier"],["Hozier","Take Me to Church"],["Arctic Monkeys","Do I Wanna Know?"],["Adele","Rolling in the Deep"],["Kings of Leon","Use Somebody"],["Twenty One Pilots","Stressed Out"],["Billie Eilish","bad guy"]],
+    CH:[["Jack Johnson","Better Together"],["Jason Mraz","I'm Yours"],["Vance Joy","Riptide"],["Bruno Mars","Count on Me"],["Colbie Caillat","Bubbly"],["Ed Sheeran","Photograph"],["Train","Hey, Soul Sister"],["John Mayer","Gravity"],["Norah Jones","Sunrise"],["Israel Kamakawiwo'ole","Somewhere Over the Rainbow"],["Corinne Bailey Rae","Put Your Records On"],["Ben Howard","Keep Your Head Up"]],
+    CE:[["Adele","Someone Like You"],["Lewis Capaldi","Someone You Loved"],["Billie Eilish","when the party's over"],["Lana Del Rey","Video Games"],["Sam Smith","Stay With Me"],["Coldplay","Fix You"],["Birdy","Skinny Love"],["James Blake","Retrograde"],["Cigarettes After Sex","Apocalypse"],["The Neighbourhood","Sweater Weather"],["Jeff Buckley","Hallelujah"],["Gracie Abrams","I miss you, I'm sorry"]],
+  },
+  jpop:{
+    AH:[["Mrs. GREEN APPLE","青と夏"],["Official髭男dism","I LOVE..."],["Vaundy","踊り子"],["嵐","Happiness"],["サザンオールスターズ","勝手にシンドバッド"],["Perfume","チョコレイト・ディスコ"],["SEKAI NO OWARI","Dragon Night"],["星野源","恋"],["YOASOBI","アイドル"],["緑黄色社会","Mela!"],["きゃりーぱみゅぱみゅ","PONPONPON"],["Creepy Nuts","Bling-Bang-Bang-Born"]],
+    AE:[["Official髭男dism","Pretender"],["King Gnu","白日"],["YOASOBI","群青"],["Vaundy","怪獣の花唄"],["Mrs. GREEN APPLE","インフェルノ"],["Ado","うっせぇわ"],["Aimer","カタオモイ"],["宇多田ヒカル","One Last Kiss"],["米津玄師","LOSER"],["King Gnu","一途"],["Ado","踊"],["YOASOBI","夜に駆ける"]],
+    CH:[["あいみょん","マリーゴールド"],["スピッツ","チェリー"],["藤井 風","きらり"],["back number","高嶺の花子さん"],["いきものがかり","ありがとう"],["星野源","SUN"],["YUI","CHE.R.RY"],["大塚愛","さくらんぼ"],["秦基博","ひまわりの約束"],["Foorin","パプリカ"],["竹内まりや","プラスティック・ラヴ"],["never young beach","明るい未来"]],
+    CE:[["宇多田ヒカル","First Love"],["米津玄師","Lemon"],["back number","クリスマスソング"],["あいみょん","君はロックを聴かない"],["Aimer","蝶々結び"],["中島みゆき","糸"],["スピッツ","楓"],["優里","ドライフラワー"],["DAOKO×米津玄師","打上花火"],["RADWIMPS","スパークル"],["milet","inside you"],["Uru","あなたがいることで"]],
+  },
+  kpop:{
+    AH:[["NewJeans","Super Shy"],["SEVENTEEN","Very Nice"],["TWICE","Dance The Night Away"],["aespa","Spicy"],["ITZY","WANNABE"],["Red Velvet","Power Up"],["PSY","Gangnam Style"],["IVE","LOVE DIVE"],["BTS","Dynamite"],["LE SSERAFIM","ANTIFRAGILE"],["TWICE","Fancy"],["Girls' Generation","Gee"]],
+    AE:[["BLACKPINK","Kill This Love"],["Stray Kids","God's Menu"],["(G)I-DLE","TOMBOY"],["ATEEZ","Wonderland"],["BLACKPINK","How You Like That"],["ITZY","LOCO"],["EXO","Monster"],["TXT","Sugar Rush Ride"],["aespa","Next Level"],["BLACKPINK","Pink Venom"],["Stray Kids","MANIAC"],["BTS","MIC Drop"]],
+    CH:[["IU","Celebrity"],["NewJeans","Ditto"],["AKMU","어떻게 이별까지 사랑하겠어"],["BOL4","좋다고 말해"],["백예린","Square"],["IU","Blueming"],["잔나비","주저하는 연인들을 위해"],["Paul Kim","모든 날, 모든 순간"],["NewJeans","Hype Boy"],["10CM","봄이 좋냐"],["Zion.T","꺼내 먹어요"],["볼빨간사춘기","여행"]],
+    CE:[["BTS","Spring Day"],["IU","밤편지 (Through the Night)"],["Crush","Beautiful"],["Heize","비도 오고 그래서"],["TAEYEON","11:11"],["BIGBANG","Still Life"],["Davichi","이 사랑"],["AKMU","낙하"],["TAEYEON","Fine"],["DEAN","instagram"],["IU","이름에게"],["Jung Kook","Still With You"]],
+  },
+  rock:{
+    AH:[["サンボマスター","世界はそれを愛と呼ぶんだぜ"],["WANIMA","ともに"],["KANA-BOON","ないものねだり"],["ELLEGARDEN","Supernova"],["UNISON SQUARE GARDEN","シュガーソングとビターステップ"],["マキシマム ザ ホルモン","恋のメガラバ"],["04 Limited Sazabys","swim"],["Green Day","American Idiot"],["Queen","Don't Stop Me Now"],["ELLEGARDEN","ジターバグ"],["10-FEET","第ゼロ感"],["フレデリック","オドループ"]],
+    AE:[["ONE OK ROCK","完全感覚Dreamer"],["ASIAN KUNG-FU GENERATION","リライト"],["Linkin Park","Numb"],["My Chemical Romance","Welcome to the Black Parade"],["[Alexandros]","ワタリドリ"],["THE YELLOW MONKEY","JAM"],["Nirvana","Smells Like Teen Spirit"],["Foo Fighters","The Pretender"],["Queen","Bohemian Rhapsody"],["ONE OK ROCK","The Beginning"],["凛として時雨","unravel"],["Red Hot Chili Peppers","Can't Stop"]],
+    CH:[["スピッツ","空も飛べるはず"],["The Beatles","Here Comes the Sun"],["Oasis","Don't Look Back in Anger"],["くるり","ばらの花"],["Mr.Children","innocent world"],["山下達郎","さよなら夏の日"],["サカナクション","ミュージック"],["ゆず","夏色"],["The Beatles","Ob-La-Di, Ob-La-Da"],["Fleetwood Mac","Dreams"],["スピッツ","ロビンソン"],["SHISHAMO","明日も"]],
+    CE:[["RADWIMPS","なんでもないや"],["フジファブリック","若者のすべて"],["Radiohead","Creep"],["ヨルシカ","春泥棒"],["クリープハイプ","栞"],["amazarashi","季節は次々死んでいく"],["Radiohead","No Surprises"],["ヨルシカ","だから僕は音楽を辞めた"],["The Smiths","There Is a Light That Never Goes Out"],["Oasis","Wonderwall"],["BUMP OF CHICKEN","花の名"],["indigo la End","悲しくなる前に"]],
+  },
+  vocaloid:{
+    AH:[["DECO*27","ヴァンパイア"],["Giga","劣等上等"],["Mitchie M","Viva Happy"],["kemu","六兆年と一夜物語"],["Mitchie M","FREELY TOMORROW"],["八王子P","Sweet Devil"],["Giga","おねがいダーリン"],["ピノキオピー","おどロボ"],["ナユタン星人","エイリアンエイリアン"],["ナユタン星人","ダンスロボットダンス"],["みきとP","いーあるふぁんくらぶ"],["和田たけあき","チュルリラ・チュルリラ・ダッダッダ！"]],
+    AE:[["wowaka","ローリンガール"],["ハチ","マトリョシカ"],["DECO*27","モザイクロール"],["Neru","東京テディベア"],["れるりり","脳漿炸裂ガール"],["ハチ","パンダヒーロー"],["wowaka","アンノウン・マザーグース"],["かいりきベア","ベノム"],["DECO*27","ゴーストルール"],["Neru","ロストワンの号哭"],["cosMo@暴走P","初音ミクの消失"],["すりぃ","テレキャスタービーボーイ"]],
+    CH:[["supercell","メルト"],["doriko","ロミオとシンデレラ"],["40mP","からくりピエロ"],["OSTER project","恋スルVOC@LOID"],["livetune","Tell Your World"],["DECO*27","愛言葉"],["40mP","おじゃま虫"],["ピノキオピー","きみも悪い人でよかった"],["OSTER project","ミラクルペイント"],["livetune","Packaged"],["sasakure.UK","ハロー、プラネット。"],["40mP","恋色病棟"]],
+    CE:[["バルーン","シャルル"],["n-buna","ウミユリ海底譚"],["ピノキオピー","すろぉもぉしょん"],["じん","アヤノの幸福理論"],["Orangestar","アスノヨゾラ哨戒班"],["n-buna","夜明けと蛍"],["john","春嵐"],["バルーン","雨とペトラ"],["supercell","ODDS&ENDS"],["Orangestar","快晴"],["ぬゆり","フラジール"],["じん","サマータイムレコード"]],
+  },
+  edm:{
+    AH:[["Calvin Harris","Summer"],["Avicii","Wake Me Up"],["Marshmello","Alone"],["Zedd","Clarity"],["Swedish House Mafia","Don't You Worry Child"],["David Guetta","Titanium"],["Martin Garrix","Animals"],["Kygo","Firestone"],["Tiësto","The Business"],["Alesso","Heroes (We Could Be)"],["Galantis","Runaway (U & I)"],["Fisher","Losing It"]],
+    AE:[["Porter Robinson","Shelter"],["Madeon","You're On"],["Flume","Never Be Like You"],["ODESZA","Say My Name"],["Avicii","Hey Brother"],["Skrillex","Bangarang"],["deadmau5","Strobe"],["The Chainsmokers","Closer"],["Alan Walker","Faded"],["The Chainsmokers","Something Just Like This"],["Porter Robinson","Language"],["Eric Prydz","Opus"]],
+    CH:[["Petit Biscuit","Sunset Lover"],["Tycho","Awake"],["FKJ","Tadow"],["Toro y Moi","So Many Details"],["Nujabes","Aruarian Dance"],["Bonobo","Cirrus"],["Kygo","Stole the Show"],["ODESZA","A Moment Apart"],["Washed Out","Feel It All Around"],["Air","La Femme d'Argent"],["Tycho","A Walk"],["FKJ","Ylang Ylang"]],
+    CE:[["Burial","Archangel"],["Bonobo","Kerala"],["Jon Hopkins","Immunity"],["Aphex Twin","Avril 14th"],["Clams Casino","I'm God"],["Boards of Canada","Roygbiv"],["Four Tet","Two Thousand and Seventeen"],["Moderat","A New Error"],["Massive Attack","Teardrop"],["Portishead","Roads"],["Ólafur Arnalds","near light"],["Nils Frahm","Says"]],
+  },
+  anime:{
+    AH:[["LiSA","紅蓮華"],["FLOW","GO!!!"],["JAM Project","THE HERO!!"],["影山ヒロノブ","CHA-LA HEAD-CHA-LA"],["高橋洋子","残酷な天使のテーゼ"],["UVERworld","CORE PRIDE"],["OxT","Clattanoia"],["GRANRODEO","Can Do"],["きただにひろし","ウィーアー！"],["Official髭男dism","ミックスナッツ"],["T.M.Revolution","INVOKE"],["いきものがかり","ブルーバード"]],
+    AE:[["LiSA","炎"],["Aimer","残響散歌"],["Eve","廻廻奇譚"],["Ado","新時代"],["SawanoHiroyuki[nZk]","aLIEz"],["神様、僕は気づいてしまった","CITRUS"],["UVERworld","ODD FUTURE"],["米津玄師","感電"],["Linked Horizon","紅蓮の弓矢"],["King Gnu","SPECIALZ"],["MYTH & ROID","VORACITY"],["藍井エイル","IGNITE"]],
+    CH:[["ClariS","コネクト"],["fhána","青空のラプソディ"],["坂本真綾","プラチナ"],["ClariS","irony"],["μ's","僕らは今のなかで"],["Aqours","青空Jumping Heart"],["やなぎなぎ","ユキトキ"],["鈴木このみ","CHOIR JAIL"],["花澤香菜","恋愛サーキュレーション"],["牧野由依","ウンディーネ"],["中川翔子","空色デイズ"],["CHiCO with HoneyWorks","世界は恋に落ちている"]],
+    CE:[["Aimer","Brave Shine"],["高橋洋子","魂のルフラン"],["ReoNa","ANIMA"],["Lia","鳥の詩"],["Galileo Galilei","青い栞"],["Eve","蒼のワルツ"],["LiSA","unlasting"],["supercell","君の知らない物語"],["やなぎなぎ","春擬き"],["Aimer","あなたに出会わなければ"],["Kalafina","Magia"],["Uru","フリージア"]],
+  },
+  hiphop:{
+    AH:[["Travis Scott","SICKO MODE"],["Kanye West","Stronger"],["Kendrick Lamar","HUMBLE."],["50 Cent","In Da Club"],["Eminem","Without Me"],["Cardi B","Bodak Yellow"],["Awich","洗脳"],["Creepy Nuts","のびしろ"],["OutKast","Hey Ya!"],["Kanye West","Gold Digger"],["Missy Elliott","Work It"],["Nicki Minaj","Super Bass"]],
+    AE:[["Kendrick Lamar","DNA."],["Eminem","Lose Yourself"],["Kanye West","Black Skinhead"],["J. Cole","MIDDLE CHILD"],["Tyler, the Creator","EARFQUAKE"],["Nas","N.Y. State of Mind"],["DMX","X Gon' Give It to Ya"],["BAD HOP","Kawasaki Drift"],["Kendrick Lamar","m.A.A.d city"],["Run The Jewels","Legend Has It"],["JAY-Z","99 Problems"],["Eminem","The Way I Am"]],
+    CH:[["Mac Miller","Good News"],["Tyler, the Creator","See You Again"],["Frank Ocean","Lost"],["Childish Gambino","Redbone"],["Anderson .Paak","Come Down"],["Nujabes","Luv(sic)"],["STUTS","夜を使いはたして"],["PUNPEE","夜が明けたら"],["De La Soul","The Magic Number"],["A Tribe Called Quest","Can I Kick It?"],["Chance the Rapper","Sunday Candy"],["tofubeats","水星"]],
+    CE:[["Kendrick Lamar","u"],["Mac Miller","Self Care"],["Drake","Marvins Room"],["J. Cole","Love Yourz"],["XXXTentacion","Jocelyn Flores"],["Juice WRLD","Lucid Dreams"],["Kid Cudi","Pursuit of Happiness"],["Frank Ocean","Self Control"],["2Pac","Dear Mama"],["Eminem","Mockingbird"],["NF","Let You Down"],["Lil Peep","Star Shopping"]],
+  },
+  classical:{
+    AH:[["Vivaldi","Spring (The Four Seasons)"],["Mozart","Eine kleine Nachtmusik"],["Rossini","William Tell Overture"],["Strauss II","The Blue Danube"],["Mozart","Rondo Alla Turca"],["Bizet","Carmen Overture"],["Offenbach","Can-Can"],["Tchaikovsky","Trepak (Nutcracker)"],["Brahms","Hungarian Dance No.5"],["Khachaturian","Sabre Dance"],["Handel","Hallelujah Chorus"],["Johann Strauss I","Radetzky March"]],
+    AE:[["Beethoven","Symphony No.5"],["Orff","O Fortuna (Carmina Burana)"],["Holst","Mars (The Planets)"],["Dvořák","Symphony No.9 'New World' IV"],["Tchaikovsky","1812 Overture"],["Wagner","Ride of the Valkyries"],["Verdi","Dies Irae (Requiem)"],["Mussorgsky","Night on Bald Mountain"],["Beethoven","Symphony No.9 'Choral' IV"],["Rachmaninoff","Prelude in C-sharp minor"],["Shostakovich","Symphony No.5 IV"],["Prokofiev","Dance of the Knights"]],
+    CH:[["Debussy","Clair de Lune"],["Satie","Gymnopédie No.1"],["Pachelbel","Canon in D"],["Bach","Air on the G String"],["Mozart","Piano Concerto No.21 (Andante)"],["Saint-Saëns","The Swan"],["Tchaikovsky","Waltz of the Flowers"],["Grieg","Morning Mood"],["Mozart","Clarinet Concerto (Adagio)"],["Fauré","Sicilienne"],["Schubert","Ave Maria"],["Boccherini","Minuet"]],
+    CE:[["Barber","Adagio for Strings"],["Chopin","Nocturne Op.9 No.2"],["Albinoni","Adagio in G minor"],["Beethoven","Moonlight Sonata"],["Rachmaninoff","Piano Concerto No.2 (II)"],["Arvo Pärt","Spiegel im Spiegel"],["Chopin","Prelude Op.28 No.4"],["Mahler","Symphony No.5 (Adagietto)"],["Elgar","Nimrod (Enigma Variations)"],["Ravel","Pavane pour une infante défunte"],["Sibelius","The Swan of Tuonela"],["Górecki","Symphony No.3 (Lento)"]],
+  },
+  jazz:{
+    AH:[["Benny Goodman","Sing, Sing, Sing"],["Louis Armstrong","When the Saints Go Marching In"],["Duke Ellington","It Don't Mean a Thing"],["Glenn Miller","In the Mood"],["Louis Prima","Just a Gigolo"],["Cab Calloway","Minnie the Moocher"],["Count Basie","One O'Clock Jump"],["Dizzy Gillespie","A Night in Tunisia"],["Charlie Parker","Ornithology"],["Ray Charles","What'd I Say"],["Duke Ellington","Take the 'A' Train"],["Oscar Peterson","C Jam Blues"]],
+    AE:[["John Coltrane","Giant Steps"],["Dave Brubeck","Take Five"],["Miles Davis","So What"],["Charles Mingus","Moanin'"],["Herbie Hancock","Cantaloupe Island"],["Art Blakey","Moanin'"],["Sonny Rollins","St. Thomas"],["John Coltrane","My Favorite Things"],["Miles Davis","Milestones"],["Herbie Hancock","Chameleon"],["Weather Report","Birdland"],["Chick Corea","Spain"]],
+    CH:[["Stan Getz & João Gilberto","The Girl from Ipanema"],["Antonio Carlos Jobim","Wave"],["Norah Jones","Don't Know Why"],["Nat King Cole","L-O-V-E"],["Diana Krall","The Look of Love"],["Astrud Gilberto","Corcovado"],["Wes Montgomery","Bumpin'"],["George Benson","Breezin'"],["Frank Sinatra","Fly Me to the Moon"],["Louis Armstrong","What a Wonderful World"],["Sarah Vaughan","Lullaby of Birdland"],["Blossom Dearie","Tea for Two"]],
+    CE:[["Bill Evans","Peace Piece"],["Chet Baker","My Funny Valentine"],["Miles Davis","Blue in Green"],["Billie Holiday","Strange Fruit"],["Nina Simone","I Put a Spell on You"],["John Coltrane","Naima"],["Duke Ellington","In a Sentimental Mood"],["Keith Jarrett","My Song"],["Charles Mingus","Goodbye Pork Pie Hat"],["Sarah Vaughan","Misty"],["Coleman Hawkins","Body and Soul"],["Brad Mehldau","Blackbird"]],
+  },
+};
+
+// アーティスト（名前・ジャンルキー・理想コードは共通。紹介文は言語ファイル）
+const ARTISTS = [
+  {name:"Dua Lipa", g:"west", code:"AHDO"},{name:"The Weeknd", g:"west", code:"AEDO"},
+  {name:"Bruno Mars", g:"west", code:"AHNO"},{name:"Adele", g:"west", code:"CENO"},
+  {name:"Billie Eilish", g:"west", code:"CEDO"},{name:"Jack Johnson", g:"west", code:"CHNO"},
+  {name:"Coldplay", g:"west", code:"AENO"},{name:"Ed Sheeran", g:"west", code:"CHNO"},
+  {name:"Lana Del Rey", g:"west", code:"CEDX"},{name:"Sia", g:"west", code:"AHDO"},
+  {name:"Taylor Swift", g:"west", code:"AHNO"},{name:"Maroon 5", g:"west", code:"AHDO"},
+  {name:"Hozier", g:"west", code:"AENX"},{name:"Sam Smith", g:"west", code:"CENO"},
+  {name:"Arctic Monkeys", g:"west", code:"AENX"},
+  {name:"Official髭男dism", g:"jpop", code:"AHNO"},{name:"King Gnu", g:"jpop", code:"AENO"},
+  {name:"YOASOBI", g:"jpop", code:"AEDO"},{name:"あいみょん", g:"jpop", code:"CHNO"},
+  {name:"藤井 風", g:"jpop", code:"CHDO"},{name:"宇多田ヒカル", g:"jpop", code:"CEDO"},
+  {name:"米津玄師", g:"jpop", code:"AEDX"},{name:"Mrs. GREEN APPLE", g:"jpop", code:"AHNO"},
+  {name:"back number", g:"jpop", code:"CENO"},{name:"Vaundy", g:"jpop", code:"AHDX"},
+  {name:"Ado", g:"jpop", code:"AEDX"},{name:"星野源", g:"jpop", code:"CHNO"},
+  {name:"Perfume", g:"jpop", code:"AHDO"},{name:"優里", g:"jpop", code:"CENO"},
+  {name:"SEKAI NO OWARI", g:"jpop", code:"AHDX"},
+  {name:"NewJeans", g:"kpop", code:"AHDO"},{name:"BLACKPINK", g:"kpop", code:"AEDO"},
+  {name:"IU", g:"kpop", code:"CHDO"},{name:"BTS", g:"kpop", code:"AHDO"},
+  {name:"Stray Kids", g:"kpop", code:"AEDO"},{name:"SEVENTEEN", g:"kpop", code:"AHDO"},
+  {name:"aespa", g:"kpop", code:"AEDX"},{name:"TWICE", g:"kpop", code:"AHDO"},
+  {name:"(G)I-DLE", g:"kpop", code:"AEDO"},{name:"TAEYEON", g:"kpop", code:"CEDO"},
+  {name:"IVE", g:"kpop", code:"AHDO"},{name:"Red Velvet", g:"kpop", code:"AHDO"},
+  {name:"ITZY", g:"kpop", code:"AEDO"},{name:"AKMU", g:"kpop", code:"CHNX"},
+  {name:"Heize", g:"kpop", code:"CEDO"},
+  {name:"ONE OK ROCK", g:"rock", code:"AENO"},{name:"スピッツ", g:"rock", code:"CHNO"},
+  {name:"ASIAN KUNG-FU GENERATION", g:"rock", code:"AENO"},{name:"ヨルシカ", g:"rock", code:"CEDX"},
+  {name:"Radiohead", g:"rock", code:"CEDX"},{name:"Mr.Children", g:"rock", code:"AHNO"},
+  {name:"RADWIMPS", g:"rock", code:"AENO"},{name:"UNISON SQUARE GARDEN", g:"rock", code:"AHNX"},
+  {name:"クリープハイプ", g:"rock", code:"CENX"},{name:"サカナクション", g:"rock", code:"AEDX"},
+  {name:"[Alexandros]", g:"rock", code:"AENO"},{name:"Oasis", g:"rock", code:"AHNO"},
+  {name:"Nirvana", g:"rock", code:"AENX"},{name:"Green Day", g:"rock", code:"AHNO"},
+  {name:"amazarashi", g:"rock", code:"CENX"},
+  {name:"DECO*27", g:"vocaloid", code:"AHDX"},{name:"wowaka", g:"vocaloid", code:"AEDX"},
+  {name:"supercell", g:"vocaloid", code:"CHDX"},{name:"バルーン", g:"vocaloid", code:"CEDX"},
+  {name:"ハチ", g:"vocaloid", code:"AEDX"},{name:"kemu", g:"vocaloid", code:"AEDX"},
+  {name:"じん", g:"vocaloid", code:"AEDX"},{name:"ピノキオピー", g:"vocaloid", code:"CHDX"},
+  {name:"Orangestar", g:"vocaloid", code:"CHDX"},{name:"n-buna", g:"vocaloid", code:"CEDX"},
+  {name:"Mitchie M", g:"vocaloid", code:"AHDX"},{name:"Giga", g:"vocaloid", code:"AHDX"},
+  {name:"40mP", g:"vocaloid", code:"CHDX"},{name:"john", g:"vocaloid", code:"CEDX"},
+  {name:"かいりきベア", g:"vocaloid", code:"AEDX"},
+  {name:"Avicii", g:"edm", code:"AHDO"},{name:"Porter Robinson", g:"edm", code:"AEDX"},
+  {name:"Tycho", g:"edm", code:"CHDX"},{name:"Burial", g:"edm", code:"CEDX"},
+  {name:"Calvin Harris", g:"edm", code:"AHDO"},{name:"ODESZA", g:"edm", code:"AEDX"},
+  {name:"Flume", g:"edm", code:"AEDX"},{name:"Marshmello", g:"edm", code:"AHDO"},
+  {name:"Bonobo", g:"edm", code:"CHDX"},{name:"Aphex Twin", g:"edm", code:"CEDX"},
+  {name:"Zedd", g:"edm", code:"AHDO"},{name:"Kygo", g:"edm", code:"CHDO"},
+  {name:"deadmau5", g:"edm", code:"AEDX"},{name:"Madeon", g:"edm", code:"AEDX"},
+  {name:"Jon Hopkins", g:"edm", code:"CEDX"},
+  // アニソン
+  {name:"LiSA", g:"anime", code:"AENO"},{name:"高橋洋子", g:"anime", code:"AENX"},
+  {name:"FLOW", g:"anime", code:"AHNO"},{name:"JAM Project", g:"anime", code:"AHNO"},
+  {name:"fhána", g:"anime", code:"CHDO"},{name:"ClariS", g:"anime", code:"CHDO"},
+  {name:"ReoNa", g:"anime", code:"CEDO"},{name:"SawanoHiroyuki[nZk]", g:"anime", code:"AEDX"},
+  {name:"Eve", g:"anime", code:"AEDX"},{name:"神様、僕は気づいてしまった", g:"anime", code:"AENX"},
+  {name:"坂本真綾", g:"anime", code:"CHNO"},{name:"やなぎなぎ", g:"anime", code:"CHNX"},
+  {name:"Galileo Galilei", g:"anime", code:"CENO"},{name:"UVERworld", g:"anime", code:"AENO"},
+  {name:"OxT", g:"anime", code:"AHDO"},
+  // HIPHOP
+  {name:"Kendrick Lamar", g:"hiphop", code:"AEDX"},{name:"Drake", g:"hiphop", code:"CEDO"},
+  {name:"Kanye West", g:"hiphop", code:"AEDX"},{name:"Travis Scott", g:"hiphop", code:"AHDX"},
+  {name:"J. Cole", g:"hiphop", code:"AENX"},{name:"Tyler, the Creator", g:"hiphop", code:"CHDX"},
+  {name:"Eminem", g:"hiphop", code:"AENO"},{name:"Nas", g:"hiphop", code:"AENX"},
+  {name:"Childish Gambino", g:"hiphop", code:"CHDX"},{name:"Mac Miller", g:"hiphop", code:"CEDX"},
+  {name:"Frank Ocean", g:"hiphop", code:"CEDX"},{name:"Kid Cudi", g:"hiphop", code:"CEDX"},
+  {name:"Creepy Nuts", g:"hiphop", code:"AHNX"},{name:"Awich", g:"hiphop", code:"AEDO"},
+  {name:"BAD HOP", g:"hiphop", code:"AHDO"},
+  // クラシック
+  {name:"Beethoven", g:"classical", code:"AENO"},{name:"Mozart", g:"classical", code:"AHNO"},
+  {name:"Bach", g:"classical", code:"CHNO"},{name:"Chopin", g:"classical", code:"CENO"},
+  {name:"Debussy", g:"classical", code:"CHNX"},{name:"Tchaikovsky", g:"classical", code:"AENO"},
+  {name:"Vivaldi", g:"classical", code:"AHNO"},{name:"Satie", g:"classical", code:"CHNX"},
+  {name:"Rachmaninoff", g:"classical", code:"CENO"},{name:"Ravel", g:"classical", code:"CHNX"},
+  {name:"Dvořák", g:"classical", code:"AENO"},{name:"Holst", g:"classical", code:"AENX"},
+  {name:"Barber", g:"classical", code:"CENX"},{name:"Arvo Pärt", g:"classical", code:"CENX"},
+  {name:"Grieg", g:"classical", code:"CHNO"},
+  // ジャズ
+  {name:"Miles Davis", g:"jazz", code:"CENX"},{name:"John Coltrane", g:"jazz", code:"AENX"},
+  {name:"Bill Evans", g:"jazz", code:"CENO"},{name:"Dave Brubeck", g:"jazz", code:"AHNX"},
+  {name:"Louis Armstrong", g:"jazz", code:"AHNO"},{name:"Duke Ellington", g:"jazz", code:"AHNO"},
+  {name:"Chet Baker", g:"jazz", code:"CENO"},{name:"Stan Getz", g:"jazz", code:"CHNO"},
+  {name:"Herbie Hancock", g:"jazz", code:"AHNX"},{name:"Thelonious Monk", g:"jazz", code:"AENX"},
+  {name:"Nina Simone", g:"jazz", code:"CENO"},{name:"Ella Fitzgerald", g:"jazz", code:"CHNO"},
+  {name:"Norah Jones", g:"jazz", code:"CHNO"},{name:"Nat King Cole", g:"jazz", code:"CHNO"},
+  {name:"Keith Jarrett", g:"jazz", code:"CENX"},
+  // 追加拡充
+  {name:"Imagine Dragons", g:"west", code:"AEDO"},{name:"Ariana Grande", g:"west", code:"AHDO"},
+  {name:"Harry Styles", g:"west", code:"AHNO"},{name:"The Beatles", g:"west", code:"CHNO"},
+  {name:"Queen", g:"west", code:"AENO"},
+  {name:"Aimer", g:"jpop", code:"CENO"},{name:"椎名林檎", g:"jpop", code:"AENX"},
+  {name:"aiko", g:"jpop", code:"CHNO"},{name:"milet", g:"jpop", code:"CEDO"},
+  {name:"サザンオールスターズ", g:"jpop", code:"AHNO"},
+  {name:"EXO", g:"kpop", code:"AEDO"},{name:"LE SSERAFIM", g:"kpop", code:"AHDX"},
+  {name:"TXT", g:"kpop", code:"AHDO"},{name:"BOL4", g:"kpop", code:"CHNX"},
+  {name:"Crush", g:"kpop", code:"CHDO"},
+  {name:"BUMP OF CHICKEN", g:"rock", code:"AENO"},{name:"ELLEGARDEN", g:"rock", code:"AHNO"},
+  {name:"東京事変", g:"rock", code:"AENX"},{name:"Linkin Park", g:"rock", code:"AEDO"},
+  {name:"My Chemical Romance", g:"rock", code:"AENO"},
+  {name:"ナユタン星人", g:"vocaloid", code:"AHDX"},{name:"すりぃ", g:"vocaloid", code:"AEDX"},
+  {name:"cosMo@暴走P", g:"vocaloid", code:"AEDX"},{name:"とあ", g:"vocaloid", code:"CHDX"},
+  {name:"ぬゆり", g:"vocaloid", code:"CEDX"},
+  {name:"Skrillex", g:"edm", code:"AEDX"},{name:"Alan Walker", g:"edm", code:"AEDO"},
+  {name:"David Guetta", g:"edm", code:"AHDO"},{name:"Nujabes", g:"edm", code:"CHDX"},
+  {name:"Petit Biscuit", g:"edm", code:"CHDX"},
+  {name:"Linked Horizon", g:"anime", code:"AENO"},{name:"藍井エイル", g:"anime", code:"AEDO"},
+  {name:"水樹奈々", g:"anime", code:"AHDO"},{name:"Kalafina", g:"anime", code:"CEDX"},
+  {name:"澤野弘之", g:"anime", code:"AEDX"},
+  {name:"Snoop Dogg", g:"hiphop", code:"AHDO"},{name:"OutKast", g:"hiphop", code:"AHNX"},
+  {name:"2Pac", g:"hiphop", code:"AENO"},{name:"A Tribe Called Quest", g:"hiphop", code:"CHNX"},
+  {name:"Lil Peep", g:"hiphop", code:"CEDX"},
+  {name:"Brahms", g:"classical", code:"CENO"},{name:"Schubert", g:"classical", code:"CHNO"},
+  {name:"Liszt", g:"classical", code:"AENO"},{name:"Handel", g:"classical", code:"AHNO"},
+  {name:"Shostakovich", g:"classical", code:"AENX"},
+  {name:"Charlie Parker", g:"jazz", code:"AENX"},{name:"Frank Sinatra", g:"jazz", code:"CHNO"},
+  {name:"Sarah Vaughan", g:"jazz", code:"CENO"},{name:"Weather Report", g:"jazz", code:"AHDX"},
+  {name:"Oscar Peterson", g:"jazz", code:"AHNO"},
+];
+const TYPE_CODES = ["AHNO","AHNX","AHDO","AHDX","AENO","AENX","AEDO","AEDX","CHNO","CHNX","CHDO","CHDX","CENO","CENX","CEDO","CEDX"];
+
+/* =========================================================
+   言語ファイル
+   ========================================================= */
+const I18N = {
+ ja:{
+  ui:{brandSub:"その時の気分を診断して、聴くべき音楽を見つける",
+    startEyebrow:"Personality × Music", startTitle:"今のあなたの気分は、<br>どんな音で鳴っている？",
+    startLead:"12の問いに直感で答えると、4つの軸からその瞬間の気分を読み解き、16の音楽タイプのどれにあたるかを診断します。あなたに合うプレイリストとアーティストの提案つきで。",
+    startBtn:"診断をはじめる", metaQ:"の問い", metaAxis:"つの軸", metaType:"タイプ",
+    backBtn:"← 前の問いへ戻る", keyhint:"<b>A</b> / <b>B</b> キーで回答 ・ <b>←</b> で戻る",
+    secType:"あなたのタイプ", secPersona:"人物像 — こんな人",
+    secMood:"気分のバランス", secArtist:"相性のいいアーティスト", secGenre:"ジャンルを選ぶ", secPlaylist:"プレイリスト",
+    allGenres:"すべて", plExact:"今の気分にぴったり", plExpand:"気分が広がる選曲",
+    plCenter:(g,b,n)=>`— ${g}（${b}を中心に全${n}曲）`, btnSpotify:"Spotifyで聴く", btnRetry:"もう一度診断する",
+    copy:"結果をコピー", copied:"コピーしました", noArtist:"該当するアーティストがいません。",
+    secChem:"タイプ相性", chemBest:"気の合う相棒", chemOpp:"正反対の存在",
+    chemBestDesc:"同じ温度で、違う音の世界を知っている相手。プレイリストを交換すると世界が広がります。",
+    chemOppDesc:"あなたにない全てを持つ相手。分かり合えたとき、最強の音楽仲間になります。",
+    btnCard:"画像で保存",
+    share:(n,c)=>`私の音楽タイプは【${n}】（${c}）でした。 #MoodTune`,
+    footer:"MOOD TUNE — 気分で診断する音楽タイプ"},
+  axis:{A:{left:"アゲ",right:"チル"},B:{left:"ハッピー",right:"エモ"},C:{left:"生音",right:"電子"},D:{left:"王道",right:"開拓"}},
+  buckets:{AH:"アゲ×ハッピー",AE:"アゲ×エモ",CH:"チル×ハッピー",CE:"チル×エモ"},
+  genres:{west:"洋楽",jpop:"J-POP",kpop:"K-POP",rock:"ロック",vocaloid:"ボカロ",edm:"電子・チル",anime:"アニソン",hiphop:"HIPHOP",classical:"クラシック",jazz:"ジャズ"},
+  kw:{A:{A:["高揚感","アッパー","躍動感"],C:["穏やか","チル","ゆるやか"]},B:{H:["明るい","ハッピー","ポジティブ"],E:["切ない","エモい","感情的"]},C:{N:["生音","オーガニック","温かい"],D:["電子音","シンセ","煌めく"]},D:{O:["王道","キャッチー","ど真ん中"],X:["先鋭","ニッチ","実験的"]}},
+  q:[
+   {q:"目覚ましを止めた朝、体が求める音は？",a:"飛び起きたくなる強いビート",b:"布団の中で漂えるメロウな音"},
+   {q:"今の心の天気を言うなら？",a:"快晴、何でもできそう",b:"少し曇り、しんみりした気分"},
+   {q:"目を閉じて心地いいのはどっちの場面？",a:"ライブハウスの汗と熱気",b:"ヘッドホンの中の電子の海"},
+   {q:"初めての街のレコード店。手に取るのは？",a:"誰もが知る不朽の名盤",b:"ジャケットに惹かれた未知の一枚"},
+   {q:"金曜の夜、あなたはどうする？",a:"朝まで騒げる場所へ繰り出す",b:"湯船と音楽で一週間をリセット"},
+   {q:"歌詞に求めるものは？",a:"前向きで背中を押す言葉",b:"切なさに寄り添う言葉"},
+   {q:"鳥肌が立つのはどんな瞬間？",a:"生演奏がひとつになる瞬間",b:"光と低音が体を包み込む瞬間"},
+   {q:"プレイリストを組み立てるなら？",a:"信頼できる定番ヒットを軸に",b:"誰も知らない曲だけを集めて"},
+   {q:"通勤・通学の道で流すのは？",a:"歩幅が広がるアップテンポ",b:"景色がスローになるバラード"},
+   {q:"泣ける映画を観終わった夜は？",a:"明るい曲で気持ちを切り替える",b:"余韻ごと音楽に沈んでいたい"},
+   {q:"惹かれる音の手触りは？",a:"木の温もりと弦の生々しい響き",b:"磨き上げられたシンセの光沢"},
+   {q:"音楽の話になったら、あなたは？",a:"みんなが知ってる曲で盛り上がる",b:"秘蔵の一曲をそっと披露する"},
+   {q:"カラオケでのあなたは？",a:"立ち上がって場を盛り上げる",b:"バラードでしっとり聴かせる"},
+   {q:"理想のライブの終わり方は？",a:"汗だくのまま余韻で乾杯",b:"静かな余韻を抱えて歩く夜道"},
+   {q:"深夜0時、再生ボタンを押すのは？",a:"気分が上がるご機嫌な曲",b:"感情の奥まで浸れる切ない曲"},
+   {q:"恋の歌を一曲選ぶなら？",a:"両想いの多幸感あふれる歌",b:"報われない片想いの歌"},
+   {q:"無人島に一つ持っていくなら？",a:"アコースティックギター",b:"シンセサイザー"},
+   {q:"あなたにとって「いい音」とは？",a:"息づかいまで聞こえる生々しさ",b:"隙のない完璧な音作り"},
+   {q:"音楽アプリを開いてまず見るのは？",a:"ランキングと急上昇",b:"「あなたへのおすすめ」の奥地"},
+   {q:"フェス会場でのあなたの動きは？",a:"大トリのステージを最前列で",b:"小さなステージで新人を発掘"},
+  ],
+  types:{
+   AHNO:{name:"サンシャイン・ストラマー",tag:"陽だまりのアコースティック・ロック",desc:"明るくエネルギッシュで生音にときめくあなた。みんなが口ずさめる名曲で場を元気にする、太陽のような存在です。"},
+   AHNX:{name:"フォーク・エクスプローラー",tag:"発掘系ハッピー・アコースティック",desc:"元気で温かい音が好きで、隠れた名バンドを掘り当てては気分を上げる、好奇心旺盛な開拓者です。"},
+   AHDO:{name:"ダンスフロア・スター",tag:"王道アップリフト・ダンスポップ",desc:"テンション高めで、煌めく電子音で踊りたいタイプ。みんなが知るアンセムで盛り上がるのが大好きです。"},
+   AHDX:{name:"ネオン・ナビゲーター",tag:"先端ハイテンション・エレクトロ",desc:"アガる電子音を求めて未知のトラックを探検する、最先端のリスナーです。"},
+   AENO:{name:"パッション・ロッカー",tag:"魂で叫ぶ王道ロック",desc:"熱量の奥に切なさを抱え、生バンドの激情に感情を重ねるタイプ。誰もが知る名曲で胸を熱くしたい気分です。"},
+   AENX:{name:"アンダーグラウンド・ファイター",tag:"激情系インディー・オルタナ",desc:"激しさと切なさを併せ持ち、地下シーンの本物の熱を求めるこだわり派です。"},
+   AEDO:{name:"ドラマティック・シンセ",tag:"壮大エモーショナル・ポップ",desc:"アガる電子音の中にドラマと切なさを求め、感動的なアンセムで感情を解き放ちたい気分です。"},
+   AEDX:{name:"サイバー・ロマンチスト",tag:"先鋭ダーク・エレクトロニカ",desc:"激しさ・切なさ・未知を求めて深い沼を泳ぐ、冷たく美しい音を愛する探求者です。"},
+   CHNO:{name:"ハッピー・チルメーカー",tag:"心地よい王道アコースティック",desc:"穏やかで前向き、温かい生音に癒されるあなた。優しい名曲でふんわり幸せな時間を作ります。"},
+   CHNX:{name:"ゆるり発掘ナチュラリスト",tag:"隠れ家フォーク／ローファイ",desc:"穏やかで温かい音を自分の感覚で掘り当てる、肩の力が抜けたこだわり人です。"},
+   CHDO:{name:"チル・ポップサーファー",tag:"洗練の王道チルアウト",desc:"穏やかで洗練された電子音が好きで、おしゃれサウンドで心地よく漂うのが得意です。"},
+   CHDX:{name:"アンビエント・ドリーマー",tag:"発掘系メロウ・エレクトロニカ",desc:"穏やかな電子音の海を、まだ見ぬ音を求めて漂う夢見がちな探検家です。"},
+   CENO:{name:"メランコリー・バラディア",tag:"涙腺に触れる王道バラード",desc:"静かに感情へ浸りたいあなた。生の歌声やピアノの切なさに、そっと寄り添ってほしい気分です。"},
+   CENX:{name:"ノクターン・ポエット",tag:"夜更けのインディー・フォーク",desc:"静かな切なさを人知れず深く味わう、詩人のようなリスナーです。"},
+   CEDO:{name:"ムーディー・シンセウェイバー",tag:"切なさ纏う王道シンセ",desc:"穏やかで内省的、メロウな電子音で夜にひとり感情を整える、物静かなロマンチストです。"},
+   CEDX:{name:"ディープ・ダイバー",tag:"深層メロウ・エクスペリメンタル",desc:"静かな電子音の最も深い場所まで潜り、誰も知らない音世界を旅する孤高のダイバーです。"},
+  },
+  personas:{
+   AHNO:{p:"休日は友達を誘ってフェスやBBQへ。場の空気を読んで自然と人を笑顔にする、みんなのムードメーカー。",t:["ムードメーカー","ポジティブ","仲間思い"]},
+   AHNX:{p:"週末は古着屋とレコード屋を巡るのが楽しみ。人とは違う『良いもの』を見つける嗅覚を持つ、朗らかなこだわり派。",t:["こだわり","好奇心旺盛","マイペース"]},
+   AHDO:{p:"イベントの中心にいて、音が鳴れば真っ先に踊り出す。一緒にいると毎日がちょっとお祭りになる、エネルギーの塊。",t:["社交的","トレンド感度◎","盛り上げ上手"]},
+   AHDX:{p:"誰も知らない新しい音をいち早く掘り当て、未来の流行を先取りする開拓者。常にアンテナを張っている刺激好き。",t:["先取り型","アンテナ","刺激好き"]},
+   AENO:{p:"内に熱い芯を持ち、好きなことには全力投球。ここぞの場面で人を奮い立たせる熱血タイプ。",t:["情熱家","一途","熱血"]},
+   AENX:{p:"メジャーより本物志向。地下のライブハウスに通い、まだ売れていない才能を応援する硬派な一匹狼。",t:["硬派","反骨精神","審美眼"]},
+   AEDO:{p:"感情の振れ幅が大きく、喜びも切なさも全力で味わう人。ドラマチックな展開に弱い、情熱的なロマンチスト。",t:["情熱的","ロマンチスト","感受性豊か"]},
+   AEDX:{p:"夜が似合う、感性の鋭い探求者。冷たく美しいものに惹かれ、自分だけの世界観を持っている。",t:["内省的","美意識","ミステリアス"]},
+   CHNO:{p:"穏やかで聞き上手。誰といても安心感を与え、小さな幸せを丁寧に味わえる癒し系。",t:["癒し系","おだやか","聞き上手"]},
+   CHNX:{p:"カフェの隅で自分だけのプレイリストを育てるタイプ。心地よさを基準にものを選ぶ、隠れこだわり人。",t:["マイペース","ナチュラル志向","隠れこだわり"]},
+   CHDO:{p:"おしゃれで力の抜けたセンスの持ち主。ゆるく集まる時間を大事にする、一緒にいて心地いい自由人。",t:["おしゃれ","ゆるやか","センス◎"]},
+   CHDX:{p:"空想にふけるのが好きな夢見がち。静かな環境で力を発揮し、新しい音や景色に心を躍らせる。",t:["夢見がち","探究心","おだやか"]},
+   CENO:{p:"感情を内に秘め、ひとりの時間で気持ちを整える人。人の痛みに敏感で寄り添う優しさを持つ繊細な共感者。",t:["繊細","共感力","内省的"]},
+   CENX:{p:"言葉や情景に敏感な詩人肌。静けさを好み、誰にも見せない繊細な世界を心に持っている。",t:["詩人肌","繊細","静けさを愛す"]},
+   CEDO:{p:"クールに見えて感情は深い、夜型の感性派。自分の世界に浸る時間を何より大切にする物静かなロマンチスト。",t:["クール","夜型","ロマンチスト"]},
+   CEDX:{p:"物事の本質や深淵に惹かれる探求者。人が踏み込まない領域に潜り、唯一無二の感性を持つ孤高の人。",t:["探求者","孤高","唯一無二"]},
+  },
+  notes:{
+   "Dua Lipa":"煌めくダンスポップで気分を底上げ","The Weeknd":"切なさとビートのシネマティックR&B","Bruno Mars":"生バンドの熱量でとことん陽気に","Adele":"圧巻の歌声で寄り添うバラード","Billie Eilish":"囁く声と低音の没入感","Jack Johnson":"波音みたいに心地よいアコギ","Coldplay":"壮大で感情的なスタジアムロック","Ed Sheeran":"弾き語りの温かさとポップさ","Lana Del Rey":"退廃的で映画のようなドリームポップ","Sia":"伸びやかな歌声のエモいポップ",
+   "Official髭男dism":"前向きなメロディと確かな演奏力","King Gnu":"重厚で劇的、感情を揺さぶる","YOASOBI":"物語性のある疾走感ボーカル","あいみょん":"等身大の言葉と素朴なギター","藤井 風":"洗練されたグルーヴで心地よく","宇多田ヒカル":"内省的で美しい電子バラード","米津玄師":"多彩で物語性ある世界観","Mrs. GREEN APPLE":"青春感あふれるバンド","back number":"失恋を歌わせたら随一","Vaundy":"ジャンル横断の新世代",
+   "NewJeans":"軽やかなY2Kポップ","BLACKPINK":"攻めのビートと強い世界観","IU":"透明感ある声で優しく包む","BTS":"多彩なサウンドで気分を高める","Stray Kids":"パワフルで攻撃的なステージ","SEVENTEEN":"多幸感あふれる一体感","aespa":"近未来的なコンセプト","TWICE":"明るく親しみやすいポップ","(G)I-DLE":"強い自己表現とカリスマ","TAEYEON":"透明感ある実力派ボーカル",
+   "ONE OK ROCK":"熱く激しいエモロック","スピッツ":"柔らかな声と普遍的なメロディ","ASIAN KUNG-FU GENERATION":"疾走するギターロックの王道","ヨルシカ":"文学的で切ない物語系","Radiohead":"実験的で内省的なオルタナ","Mr.Children":"国民的に愛される前向きロック","RADWIMPS":"詩的で情熱的なバンド","UNISON SQUARE GARDEN":"疾走感あるテクニカルロック","クリープハイプ":"切なくひねくれた歌詞","サカナクション":"ロックと電子の融合",
+   "DECO*27":"中毒性あるボカロポップ","wowaka":"高速で疾走する激情ボカロック","supercell":"黄金期の瑞々しいメロディ","バルーン":"陰のある繊細で切ない音","ハチ":"中毒性ある伝説的名曲群","kemu":"疾走する物語系ボカロ","じん":"カゲプロの世界観","ピノキオピー":"風刺とポップが同居","Orangestar":"爽やかで切ない青空サウンド","n-buna":"文学的で繊細なメロディ",
+   "Avicii":"高揚感あふれるアンセムEDM","Porter Robinson":"エモさと多幸感の電子音","Tycho":"夕暮れのようなアンビエント","Burial":"霧がかった深夜のビート","Calvin Harris":"フロアを沸かすアンセム","ODESZA":"壮大なエレクトロニカ","Flume":"先鋭なフューチャービート","Marshmello":"楽しいフェスEDM","Bonobo":"有機的なダウンテンポ","Aphex Twin":"電子音楽の鬼才",
+  },
+ },
+
+ en:{
+  ui:{brandSub:"Read your current mood, find the music for it",
+    startEyebrow:"Personality × Music", startTitle:"What does your<br>mood sound like?",
+    startLead:"Answer 12 quick questions and we'll read your current mood across 4 axes, match you to one of 16 music types, and suggest a playlist and artists made for you.",
+    startBtn:"Start the test", metaQ:" questions", metaAxis:" axes", metaType:" types",
+    backBtn:"← Previous", keyhint:"Answer with <b>A</b> / <b>B</b> · <b>←</b> to go back",
+    secType:"Your Type", secPersona:"Persona — who you are",
+    secMood:"Mood Balance", secArtist:"Artist Match", secGenre:"Choose your genre", secPlaylist:"Playlist",
+    allGenres:"All", plExact:"Right for your mood", plExpand:"Broaden the mood",
+    plCenter:(g,b,n)=>`— ${g} · ${n} tracks around “${b}”`, btnSpotify:"Open in Spotify", btnRetry:"Take it again",
+    copy:"Copy result", copied:"Copied!", noArtist:"No matching artists.",
+    secChem:"Type Chemistry", chemBest:"Kindred spirit", chemOpp:"Your polar opposite",
+    chemBestDesc:"Same temperature, a different sound world. Swap playlists and your map expands.",
+    chemOppDesc:"They hold everything you don't. Understand each other, and you're unstoppable.",
+    btnCard:"Save as image",
+    share:(n,c)=>`My music type is "${n}" (${c}). #MoodTune`,
+    footer:"MOOD TUNE — A MOOD-BASED MUSIC DIAGNOSIS"},
+  axis:{A:{left:"Hyped",right:"Chill"},B:{left:"Bright",right:"Moody"},C:{left:"Acoustic",right:"Electronic"},D:{left:"Classic",right:"Explorer"}},
+  buckets:{AH:"Hyped × Bright",AE:"Hyped × Moody",CH:"Chill × Bright",CE:"Chill × Moody"},
+  genres:{west:"Western",jpop:"J-POP",kpop:"K-POP",rock:"Rock",vocaloid:"Vocaloid",edm:"Electronic",anime:"Anime",hiphop:"Hip-Hop",classical:"Classical",jazz:"Jazz"},
+  kw:{A:{A:["High-energy","Uplifting","Driving"],C:["Calm","Chilled","Mellow"]},B:{H:["Bright","Happy","Positive"],E:["Wistful","Emotional","Moody"]},C:{N:["Acoustic","Organic","Warm"],D:["Electronic","Synth","Shimmering"]},D:{O:["Classic","Catchy","Mainstream"],X:["Cutting-edge","Niche","Experimental"]}},
+  q:[
+   {q:"The alarm stops. What does your body ask for?",a:"A beat strong enough to launch you up",b:"Mellow sound to drift under the covers"},
+   {q:"If your heart had weather today?",a:"Clear skies — I can do anything",b:"A little cloudy and wistful"},
+   {q:"Eyes closed — which scene feels right?",a:"The sweat and heat of a live house",b:"An electronic ocean inside headphones"},
+   {q:"A record shop in an unfamiliar town. You grab…",a:"A timeless classic everyone knows",b:"An unknown sleeve that caught your eye"},
+   {q:"Friday night. What's your move?",a:"Head somewhere loud until morning",b:"A hot bath and music to reset the week"},
+   {q:"What do you want from lyrics?",a:"Words that push you forward",b:"Words that sit with your sadness"},
+   {q:"What kind of moment gives you chills?",a:"A live band locking into one groove",b:"Light and bass swallowing your body"},
+   {q:"Building a playlist, you…",a:"Anchor it with reliable hits",b:"Fill it only with songs nobody knows"},
+   {q:"Your soundtrack on the way to work or school?",a:"Up-tempo that lengthens your stride",b:"Ballads that slow the passing scenery"},
+   {q:"The night after a tear-jerker movie?",a:"Switch moods with something bright",b:"Stay sunk in the afterglow with music"},
+   {q:"The sound texture that draws you in?",a:"Warm wood and the raw ring of strings",b:"The polished sheen of synthesizers"},
+   {q:"When the conversation turns to music, you…",a:"Bond over songs everyone knows",b:"Quietly unveil a treasured gem"},
+   {q:"At karaoke, you are…",a:"On your feet, hyping the whole room",b:"Delivering a quiet, soulful ballad"},
+   {q:"The perfect ending to a live show?",a:"A sweaty toast while the buzz lasts",b:"A quiet walk home holding the echo"},
+   {q:"Midnight. You press play on…",a:"An upbeat, feel-good track",b:"A tender song to sink deep into"},
+   {q:"Choosing one love song, you pick…",a:"The euphoria of love returned",b:"An aching, unrequited one"},
+   {q:"One item for a desert island?",a:"An acoustic guitar",b:"A synthesizer"},
+   {q:"To you, “good sound” means…",a:"Raw enough to hear the breathing",b:"Flawless, airtight production"},
+   {q:"Opening your music app, you check…",a:"Charts and trending first",b:"The depths of your recommendations"},
+   {q:"Your path through a festival?",a:"Front row for the headliner",b:"Hunting newcomers on the small stages"},
+  ],
+  types:{
+   AHNO:{name:"Sunshine Strummer",tag:"Sunlit acoustic rock",desc:"Bright and energetic, moved by live sound. Like the sun, you lift the room with songs everyone can sing along to."},
+   AHNX:{name:"Folk Explorer",tag:"Hidden-gem happy acoustic",desc:"You love warm, upbeat sound and a curious knack for digging up bands no one else knows yet."},
+   AHDO:{name:"Dancefloor Star",tag:"Uplifting dance-pop",desc:"High energy, ready to dance to glittering electronics. You live for anthems everyone knows."},
+   AHDX:{name:"Neon Navigator",tag:"Cutting-edge high-energy electro",desc:"A front-row listener who hunts unknown tracks chasing that next electronic rush."},
+   AENO:{name:"Passion Rocker",tag:"Soul-shouting classic rock",desc:"Heat with a tender core, riding the fury of a live band. You want anthems that set your chest on fire."},
+   AENX:{name:"Underground Fighter",tag:"Fierce indie / alt",desc:"Intense yet wistful, a purist chasing the real heat of the underground scene."},
+   AEDO:{name:"Dramatic Synth",tag:"Grand emotional pop",desc:"You seek drama and longing inside big electronics, releasing emotion through moving anthems."},
+   AEDX:{name:"Cyber Romantic",tag:"Avant-garde dark electronica",desc:"A seeker swimming the deep end of intensity, longing and the unknown, in love with cold, beautiful sound."},
+   CHNO:{name:"Happy Chillmaker",tag:"Cozy classic acoustic",desc:"Calm and positive, soothed by warm live sound. You craft gentle, happy moments with kind songs."},
+   CHNX:{name:"Mellow Naturalist",tag:"Hideaway folk / lo-fi",desc:"You dig up warm, easy sound by your own taste — a relaxed soul with quiet, real standards."},
+   CHDO:{name:"Chill Pop Surfer",tag:"Refined classic chill-out",desc:"You love calm, polished electronics, drifting comfortably on stylish sound."},
+   CHDX:{name:"Ambient Dreamer",tag:"Hidden-gem mellow electronica",desc:"A daydreamer drifting the sea of calm electronics in search of sounds yet unheard."},
+   CENO:{name:"Melancholy Balladeer",tag:"Tear-touching classic ballads",desc:"You want to sink quietly into feeling, longing for live vocals and piano to gently sit beside you."},
+   CENX:{name:"Nocturne Poet",tag:"Late-night indie folk",desc:"A poet at heart, savoring quiet sadness deeply and alone."},
+   CEDO:{name:"Moody Synthwaver",tag:"Wistful classic synth",desc:"Calm and inward, a quiet romantic who tunes their feelings alone at night with mellow electronics."},
+   CEDX:{name:"Deep Diver",tag:"Deep mellow experimental",desc:"You dive to the deepest point of quiet electronics, a solitary traveler of sounds no one knows."},
+  },
+  personas:{
+   AHNO:{p:"On days off you round up friends for festivals or BBQs. You read the room and make people smile — everyone's mood-maker.",t:["Mood-maker","Positive","Loyal friend"]},
+   AHNX:{p:"Weekends mean vintage shops and record stores. You have a nose for the 'good stuff' others miss — cheerful but particular.",t:["Particular","Curious","Own pace"]},
+   AHDO:{p:"Always at the center of the party, first to dance when the music drops. Being around you turns every day into a little festival.",t:["Social","Trend-savvy","Life of the party"]},
+   AHDX:{p:"You unearth brand-new sounds before anyone, a pioneer reading the future of trends with antennae always up.",t:["Early adopter","Antenna","Thrill-seeker"]},
+   AENO:{p:"A hot core inside, all-in on what you love. You're the type who fires people up at the decisive moment.",t:["Passionate","Devoted","Fiery"]},
+   AENX:{p:"More real than mainstream. You haunt small venues, backing talent before it breaks — a tough-minded lone wolf.",t:["Tough-minded","Rebel","Discerning"]},
+   AEDO:{p:"Big emotional swings — you feel joy and sorrow at full volume, a passionate romantic weak for dramatic moments.",t:["Passionate","Romantic","Sensitive"]},
+   AEDX:{p:"A sharp-sensed seeker who suits the night, drawn to cold beauty and holding a world all your own.",t:["Inward","Aesthetic","Mysterious"]},
+   CHNO:{p:"Calm and a great listener. You put everyone at ease and savor small joys — a soothing presence.",t:["Soothing","Gentle","Good listener"]},
+   CHNX:{p:"The type growing a private playlist in a café corner, choosing things by comfort — quietly particular.",t:["Own pace","Natural","Quietly particular"]},
+   CHDO:{p:"Stylish with an easy, unforced taste. You value loose hangouts — a free spirit who's easy to be around.",t:["Stylish","Easygoing","Great taste"]},
+   CHDX:{p:"A daydreamer who loves to wander in thought, thriving in quiet and thrilled by new sounds and scenes.",t:["Dreamer","Inquisitive","Gentle"]},
+   CENO:{p:"You keep feelings inside and settle them in solitude. Sensitive to others' pain, a tender empath.",t:["Sensitive","Empathetic","Inward"]},
+   CENX:{p:"A poet's heart, alert to words and scenery. You prefer quiet and hold a delicate world no one sees.",t:["Poetic","Delicate","Loves quiet"]},
+   CEDO:{p:"Cool on the outside, deep within — a night owl who treasures time lost in your own world.",t:["Cool","Night owl","Romantic"]},
+   CEDX:{p:"Drawn to the essence and the depths, diving where others won't, holding a one-of-a-kind sensibility.",t:["Seeker","Solitary","One of a kind"]},
+  },
+  notes:{
+   "Dua Lipa":"Shimmering dance-pop to lift the mood","The Weeknd":"Cinematic R&B of beats and longing","Bruno Mars":"Pure joy with live-band heat","Adele":"Towering vocals that comfort","Billie Eilish":"Whispered voice, deep low end","Jack Johnson":"Acoustic as easy as waves","Coldplay":"Grand, emotional stadium rock","Ed Sheeran":"Warm, poppy singer-songwriter","Lana Del Rey":"Wistful, cinematic dream-pop","Sia":"Soaring voice, emotional pop",
+   "Official髭男dism":"Uplifting melodies, real chops","King Gnu":"Heavy, dramatic, moving","YOASOBI":"Story-driven, racing vocals","あいみょん":"Honest words, plain guitar","藤井 風":"Smooth groove, easy comfort","宇多田ヒカル":"Inward, beautiful electro-ballads","米津玄師":"Versatile, story-rich world","Mrs. GREEN APPLE":"Youthful band energy","back number":"Unmatched at heartbreak songs","Vaundy":"Genre-crossing new generation",
+   "NewJeans":"Light, breezy Y2K pop","BLACKPINK":"Sharp beats, strong vision","IU":"Crystal voice that comforts","BTS":"Varied sound to lift the mood","Stray Kids":"Powerful, aggressive stage","SEVENTEEN":"Joyful group unity","aespa":"Futuristic concept","TWICE":"Bright, friendly pop","(G)I-DLE":"Bold self-expression","TAEYEON":"Clear-voiced powerhouse",
+   "ONE OK ROCK":"Hot, intense emo rock","スピッツ":"Soft voice, timeless melody","ASIAN KUNG-FU GENERATION":"Racing guitar-rock standard","ヨルシカ":"Literary, wistful storytelling","Radiohead":"Experimental, inward alt-rock","Mr.Children":"Beloved, uplifting rock","RADWIMPS":"Poetic, passionate band","UNISON SQUARE GARDEN":"Fast, technical guitar rock","クリープハイプ":"Wistful, crooked lyrics","サカナクション":"Rock fused with electronics",
+   "DECO*27":"Addictive Vocaloid pop","wowaka":"Blazing, fast Vocarock","supercell":"Fresh golden-era melody","バルーン":"Shadowed, delicate sadness","ハチ":"Addictive, legendary tracks","kemu":"Racing story-driven Vocaloid","じん":"The Kagerou Project world","ピノキオピー":"Satire meets pop","Orangestar":"Fresh, wistful blue-sky sound","n-buna":"Literary, delicate melodies",
+   "Avicii":"Euphoric anthem EDM","Porter Robinson":"Emo meets euphoria","Tycho":"Sunset-hued ambient","Burial":"Foggy late-night beats","Calvin Harris":"Floor-filling anthems","ODESZA":"Grand, uplifting electronica","Flume":"Sharp future beats","Marshmello":"Fun festival EDM","Bonobo":"Organic downtempo","Aphex Twin":"Genius of electronic music",
+  },
+ },
+
+ zh:{
+  ui:{brandSub:"诊断此刻的心情，找到该听的音乐",
+    startEyebrow:"性格 × 音乐", startTitle:"此刻你的心情，<br>是什么样的声音？",
+    startLead:"凭直觉回答12个问题，我们会从4个维度读出你此刻的心情，将你匹配到16种音乐类型之一，并为你推荐专属歌单与音乐人。",
+    startBtn:"开始诊断", metaQ:"个问题", metaAxis:"个维度", metaType:"种类型",
+    backBtn:"← 上一题", keyhint:"按 <b>A</b> / <b>B</b> 作答 · <b>←</b> 返回",
+    secType:"你的类型", secPersona:"人物侧写 — 你是这样的人",
+    secMood:"心情平衡", secArtist:"契合的音乐人", secGenre:"选择曲风", secPlaylist:"歌单",
+    allGenres:"全部", plExact:"最贴合此刻心情", plExpand:"拓展心情的延伸曲",
+    plCenter:(g,b,n)=>`— ${g} · 以「${b}」为中心的${n}首`, btnSpotify:"在 Spotify 收听", btnRetry:"再测一次",
+    copy:"复制结果", copied:"已复制", noArtist:"没有匹配的音乐人。",
+    secChem:"类型契合", chemBest:"合拍的伙伴", chemOpp:"完全相反的存在",
+    chemBestDesc:"温度相同、音色世界不同的人。交换歌单，世界随之打开。",
+    chemOppDesc:"拥有你所没有的一切。相互理解之时，就是最强的音乐同伴。",
+    btnCard:"保存为图片",
+    share:(n,c)=>`我的音乐类型是【${n}】（${c}）。 #MoodTune`,
+    footer:"MOOD TUNE — 以心情诊断的音乐类型"},
+  axis:{A:{left:"嗨",right:"松弛"},B:{left:"明亮",right:"伤感"},C:{left:"原声",right:"电子"},D:{left:"经典",right:"探索"}},
+  buckets:{AH:"嗨×明亮",AE:"嗨×伤感",CH:"松弛×明亮",CE:"松弛×伤感"},
+  genres:{west:"欧美",jpop:"J-POP",kpop:"K-POP",rock:"摇滚",vocaloid:"VOCALOID",edm:"电子/Chill",anime:"动漫",hiphop:"嘻哈",classical:"古典",jazz:"爵士"},
+  kw:{A:{A:["高能","昂扬","律动"],C:["平和","松弛","舒缓"]},B:{H:["明亮","欢快","积极"],E:["伤感","动情","忧郁"]},C:{N:["原声","有机","温暖"],D:["电子","合成","闪烁"]},D:{O:["经典","抓耳","正统"],X:["先锋","小众","实验"]}},
+  q:[
+   {q:"按掉闹钟的那一刻，身体想要什么声音？",a:"让人一跃而起的强节拍",b:"能窝在被子里漂浮的柔和声音"},
+   {q:"用天气形容此刻的心情？",a:"晴空万里，什么都能做",b:"有点阴天，淡淡感伤"},
+   {q:"闭上眼睛，哪个场景更舒服？",a:"Livehouse 的汗水与热气",b:"耳机里的电子海洋"},
+   {q:"在陌生城市的唱片店，你会拿起？",a:"人人皆知的不朽名盘",b:"因封面而心动的未知一张"},
+   {q:"周五的夜晚，你的选择是？",a:"去能闹到天亮的地方",b:"泡个澡、听音乐，重启一周"},
+   {q:"你对歌词的期待？",a:"积极、推你前行的话语",b:"贴近忧伤、陪伴你的话语"},
+   {q:"什么瞬间让你起鸡皮疙瘩？",a:"现场乐队合为一体的瞬间",b:"灯光与低音吞没全身的瞬间"},
+   {q:"组建歌单时，你会？",a:"以稳妥的热门金曲为轴",b:"只收录无人知晓的歌"},
+   {q:"通勤路上的背景音乐？",a:"让步伐变大的快节奏",b:"让风景变慢的抒情歌"},
+   {q:"看完催泪电影的那个夜晚？",a:"用明亮的歌切换心情",b:"想连同余韵一起沉进音乐"},
+   {q:"吸引你的声音质感？",a:"木头的温度与琴弦的生涩振动",b:"打磨光亮的合成器光泽"},
+   {q:"聊到音乐话题时，你会？",a:"用人人皆知的歌炒热气氛",b:"悄悄亮出私藏的一首"},
+   {q:"在KTV里的你是？",a:"站起来带动全场的人",b:"用抒情歌安静打动人心"},
+   {q:"演出最理想的结束方式？",a:"趁着热汗与余温干杯",b:"抱着安静的余韵走夜路回家"},
+   {q:"深夜零点，你按下播放的是？",a:"令心情大好的欢快歌曲",b:"能沉到情绪深处的伤感歌"},
+   {q:"只选一首情歌的话？",a:"两情相悦的幸福之歌",b:"无果单恋的心碎之歌"},
+   {q:"只带一件东西去无人岛？",a:"木吉他",b:"合成器"},
+   {q:"你心中的「好声音」是？",a:"连呼吸都听得见的真实",b:"毫无破绽的完美制作"},
+   {q:"打开音乐App先看什么？",a:"排行榜与飙升榜",b:"「为你推荐」的最深处"},
+   {q:"在音乐节现场的动线？",a:"压轴舞台的最前排",b:"在小舞台挖掘新人"},
+  ],
+  types:{
+   AHNO:{name:"阳光吉他手",tag:"暖阳原声摇滚",desc:"明亮而充满活力，为真实声音心动。像太阳一样，用人人会唱的金曲点亮全场。"},
+   AHNX:{name:"民谣探索者",tag:"挖掘系欢快原声",desc:"喜欢温暖明快的声音，总能挖到无人知晓的好乐队来提振心情的好奇开拓者。"},
+   AHDO:{name:"舞池之星",tag:"正统提振舞曲流行",desc:"情绪高涨，想随闪烁电子音起舞。最爱用人人都懂的金曲一起嗨。"},
+   AHDX:{name:"霓虹领航者",tag:"前沿高能电子",desc:"为更带感的电子音去探寻未知曲目，走在最前沿的听众。"},
+   AENO:{name:"热血摇滚客",tag:"以魂呐喊的正统摇滚",desc:"热度深处藏着柔情，把情绪投入乐队的激情。想用经典金曲点燃胸口。"},
+   AENX:{name:"地下斗士",tag:"激情系独立另类",desc:"激烈又伤感，追求地下场景真实热度的执着派。"},
+   AEDO:{name:"戏剧合成派",tag:"宏大情感流行",desc:"在带感的电子音里寻找戏剧与柔情，借动人金曲释放情绪。"},
+   AEDX:{name:"赛博浪漫者",tag:"前卫暗黑电子",desc:"在激烈、伤感与未知的深渊里游弋，钟爱冷冽而美丽声音的探求者。"},
+   CHNO:{name:"暖心治愈者",tag:"舒适正统原声",desc:"平和而积极，被温暖原声治愈。用温柔金曲营造轻盈幸福的时光。"},
+   CHNX:{name:"悠然挖掘家",tag:"私藏民谣／Lo-fi",desc:"凭自己的感觉挖出温暖舒适的声音，放松又有讲究的人。"},
+   CHDO:{name:"慵懒冲浪者",tag:"精致正统Chill-out",desc:"喜欢平和而精致的电子音，擅长在时髦声音里舒服漂浮。"},
+   CHDX:{name:"氛围梦想家",tag:"挖掘系柔和电子",desc:"在平和电子音的海里，为尚未听过的声音而漂泊的梦想探险家。"},
+   CENO:{name:"忧郁歌谣人",tag:"催泪正统抒情",desc:"想静静沉入情绪，渴望真实人声与钢琴的柔情轻轻陪伴。"},
+   CENX:{name:"夜曲诗人",tag:"深夜独立民谣",desc:"独自而深地品味安静的忧伤，宛如诗人的听众。"},
+   CEDO:{name:"暗涌合成浪",tag:"裹挟柔情的正统合成",desc:"平和而内省，夜里用柔和电子音独自整理情绪的安静浪漫者。"},
+   CEDX:{name:"深海潜行者",tag:"深层柔和实验",desc:"潜入安静电子音最深处，独自旅行于无人知晓声音世界的孤高潜者。"},
+  },
+  personas:{
+   AHNO:{p:"假日会招呼朋友去音乐节或烧烤，懂得察言观色让人微笑——大家的气氛担当。",t:["气氛担当","积极","重情义"]},
+   AHNX:{p:"周末爱逛古着店与唱片行，有挖出别人忽略的『好东西』的嗅觉——开朗又讲究。",t:["讲究","好奇","按自己节奏"]},
+   AHDO:{p:"总在派对中心，音乐一响第一个起舞。有你在，每天都像小小节日。",t:["善社交","懂潮流","活跃气氛"]},
+   AHDX:{p:"比谁都早挖到全新声音，预知潮流的开拓者，天线永远高高竖起的爱刺激者。",t:["先行者","天线","爱刺激"]},
+   AENO:{p:"内心有团火，对喜欢的事全力以赴，关键时刻能点燃他人的热血型。",t:["热情","专一","热血"]},
+   AENX:{p:"比起主流更求真，常去地下展演场，支持尚未走红的才华——硬核独行者。",t:["硬核","反骨","有眼光"]},
+   AEDO:{p:"情绪起伏大，喜悦与伤感都全力体验，易被戏剧瞬间打动的热情浪漫者。",t:["热情","浪漫","敏感"]},
+   AEDX:{p:"适合夜晚、感性敏锐的探求者，被冷冽之美吸引，拥有专属世界观。",t:["内省","审美","神秘"]},
+   CHNO:{p:"平和又会倾听，让人安心，能细品小确幸的治愈系存在。",t:["治愈","温和","会倾听"]},
+   CHNX:{p:"在咖啡馆角落培养私人歌单，以舒适为标准选物的隐藏讲究人。",t:["按自己节奏","自然系","暗藏讲究"]},
+   CHDO:{p:"时髦又松弛的品味，珍惜随性相聚的时光，相处舒服的自由人。",t:["时髦","松弛","好品味"]},
+   CHDX:{p:"爱沉浸幻想的梦想家，在安静环境发挥实力，为新声音与风景心动。",t:["爱幻想","求知","温和"]},
+   CENO:{p:"把情绪藏在心里，靠独处整理心情，对他人痛苦敏感的温柔共情者。",t:["细腻","共情","内省"]},
+   CENX:{p:"对文字与情景敏感的诗人气质，偏爱安静，心里有不示人的细腻世界。",t:["诗人气质","细腻","爱安静"]},
+   CEDO:{p:"外表冷静内里情深的夜型感性派，最珍视沉浸自我世界的时光。",t:["冷静","夜型","浪漫"]},
+   CEDX:{p:"被本质与深渊吸引的探求者，潜入他人不涉之地，拥有独一无二的感性。",t:["探求者","孤高","独一无二"]},
+  },
+  notes:{
+   "Dua Lipa":"闪耀舞曲流行，瞬间提振","The Weeknd":"柔情与节拍的电影感R&B","Bruno Mars":"乐队热度，彻底欢快","Adele":"震撼歌声，温柔陪伴","Billie Eilish":"耳语人声与低音沉浸","Jack Johnson":"如海浪般舒适的原声","Coldplay":"宏大而深情的体育场摇滚","Ed Sheeran":"弹唱的温暖与流行","Lana Del Rey":"颓废如电影的梦幻流行","Sia":"舒展歌声的情感流行",
+   "Official髭男dism":"积极旋律与扎实演奏","King Gnu":"厚重戏剧，撼动情绪","YOASOBI":"叙事感的疾驰人声","あいみょん":"真实话语与质朴吉他","藤井 風":"精致律动，舒适宜人","宇多田ヒカル":"内省而美的电子抒情","米津玄師":"多元而富叙事的世界","Mrs. GREEN APPLE":"青春洋溢的乐队","back number":"唱失恋无人能及","Vaundy":"跨曲风的新世代",
+   "NewJeans":"轻盈的Y2K流行","BLACKPINK":"凌厉节拍与强世界观","IU":"通透歌声温柔包覆","BTS":"多元声音提振心情","Stray Kids":"强力而凌厉的舞台","SEVENTEEN":"洋溢幸福的一体感","aespa":"近未来概念","TWICE":"明亮亲切的流行","(G)I-DLE":"强烈自我表达","TAEYEON":"通透实力派歌声",
+   "ONE OK ROCK":"炽热激烈的情感摇滚","スピッツ":"柔和嗓音与永恒旋律","ASIAN KUNG-FU GENERATION":"疾驰吉他摇滚正统","ヨルシカ":"文学而伤感的叙事","Radiohead":"实验内省的另类","Mr.Children":"国民级积极摇滚","RADWIMPS":"诗意而热情的乐队","UNISON SQUARE GARDEN":"疾驰的技术派摇滚","クリープハイプ":"伤感又别扭的歌词","サカナクション":"摇滚与电子的融合",
+   "DECO*27":"上瘾的VOCALOID流行","wowaka":"高速疾驰的激情VOCAROCK","supercell":"黄金期的清新旋律","バルーン":"带阴影的细腻伤感","ハチ":"上瘾的传说名曲","kemu":"疾驰叙事系VOCALOID","じん":"阳炎计划的世界观","ピノキオピー":"讽刺与流行并存","Orangestar":"清爽而伤感的蓝天声","n-buna":"文学而细腻的旋律",
+   "Avicii":"高扬的Anthem EDM","Porter Robinson":"情感与幸福的电子音","Tycho":"夕阳般的氛围","Burial":"雾气弥漫的深夜节拍","Calvin Harris":"点燃舞池的Anthem","ODESZA":"宏大提振的电子乐","Flume":"前卫的未来节拍","Marshmello":"欢乐的音乐节EDM","Bonobo":"有机的Downtempo","Aphex Twin":"电子乐鬼才",
+  },
+ },
+
+ ko:{
+  ui:{brandSub:"지금의 기분을 진단하고, 들을 음악을 찾다",
+    startEyebrow:"성격 × 음악", startTitle:"지금 당신의 기분은<br>어떤 소리로 울리나요?",
+    startLead:"12개의 질문에 직감으로 답하면 4개의 축으로 지금의 기분을 읽어 16가지 음악 타입 중 하나로 진단하고, 어울리는 플레이리스트와 아티스트를 추천합니다.",
+    startBtn:"진단 시작", metaQ:"개 질문", metaAxis:"개 축", metaType:"개 타입",
+    backBtn:"← 이전 질문", keyhint:"<b>A</b> / <b>B</b> 키로 답하기 · <b>←</b> 뒤로",
+    secType:"당신의 타입", secPersona:"페르소나 — 이런 사람",
+    secMood:"무드 밸런스", secArtist:"잘 맞는 아티스트", secGenre:"장르 선택", secPlaylist:"플레이리스트",
+    allGenres:"전체", plExact:"지금 기분에 딱", plExpand:"기분을 넓혀줄 선곡",
+    plCenter:(g,b,n)=>`— ${g} · “${b}” 중심 ${n}곡`, btnSpotify:"Spotify에서 듣기", btnRetry:"다시 진단하기",
+    copy:"결과 복사", copied:"복사했습니다", noArtist:"해당하는 아티스트가 없습니다.",
+    secChem:"타입 케미", chemBest:"잘 맞는 단짝", chemOpp:"정반대의 존재",
+    chemBestDesc:"같은 온도로 다른 소리 세계를 아는 상대. 플레이리스트를 교환하면 세계가 넓어집니다.",
+    chemOppDesc:"당신에게 없는 모든 것을 가진 상대. 서로를 이해하면 최강의 음악 친구가 됩니다.",
+    btnCard:"이미지로 저장",
+    share:(n,c)=>`내 음악 타입은 【${n}】(${c}) 입니다. #MoodTune`,
+    footer:"MOOD TUNE — 기분으로 진단하는 음악 타입"},
+  axis:{A:{left:"업",right:"칠"},B:{left:"밝음",right:"감성"},C:{left:"어쿠스틱",right:"일렉"},D:{left:"정통",right:"탐험"}},
+  buckets:{AH:"업×밝음",AE:"업×감성",CH:"칠×밝음",CE:"칠×감성"},
+  genres:{west:"팝(서양)",jpop:"J-POP",kpop:"K-POP",rock:"록",vocaloid:"보컬로이드",edm:"일렉/칠",anime:"애니송",hiphop:"힙합",classical:"클래식",jazz:"재즈"},
+  kw:{A:{A:["고양감","업템포","역동"],C:["잔잔","칠","느긋"]},B:{H:["밝음","해피","긍정"],E:["애틋","감성","우수"]},C:{N:["어쿠스틱","오가닉","온기"],D:["일렉","신스","반짝"]},D:{O:["정통","캐치","왕도"],X:["첨예","니치","실험적"]}},
+  q:[
+   {q:"알람을 끈 아침, 몸이 원하는 소리는?",a:"벌떡 일어나게 하는 강한 비트",b:"이불 속을 떠다닐 잔잔한 소리"},
+   {q:"지금 마음의 날씨를 말한다면?",a:"쾌청, 뭐든 할 수 있을 것 같아",b:"살짝 흐림, 잔잔하게 가라앉은 기분"},
+   {q:"눈을 감았을 때 편안한 장면은?",a:"라이브하우스의 땀과 열기",b:"헤드폰 속 전자음의 바다"},
+   {q:"낯선 동네 레코드숍에서 집어드는 건?",a:"모두가 아는 불후의 명반",b:"재킷에 끌린 미지의 한 장"},
+   {q:"금요일 밤, 당신의 선택은?",a:"아침까지 놀 수 있는 곳으로",b:"반신욕과 음악으로 한 주를 리셋"},
+   {q:"가사에 바라는 것은?",a:"긍정적으로 등을 밀어주는 말",b:"애틋함에 다가와 주는 말"},
+   {q:"소름이 돋는 순간은?",a:"라이브 밴드가 하나 되는 순간",b:"빛과 저음이 온몸을 삼키는 순간"},
+   {q:"플레이리스트를 만들 때 당신은?",a:"믿을 수 있는 히트곡을 중심으로",b:"아무도 모르는 곡만 모아서"},
+   {q:"출퇴근·등하굣길의 BGM은?",a:"보폭이 커지는 업템포",b:"풍경이 느려지는 발라드"},
+   {q:"눈물 나는 영화를 본 그날 밤엔?",a:"밝은 곡으로 기분을 전환한다",b:"여운째 음악에 가라앉고 싶다"},
+   {q:"끌리는 소리의 질감은?",a:"나무의 온기와 현의 생생한 울림",b:"반들반들 다듬어진 신스의 광택"},
+   {q:"음악 이야기가 나오면 당신은?",a:"모두 아는 곡으로 분위기를 띄운다",b:"아껴둔 한 곡을 살며시 공개한다"},
+   {q:"노래방에서의 당신은?",a:"일어나서 분위기를 띄우는 사람",b:"발라드로 차분히 감동시키는 사람"},
+   {q:"이상적인 공연의 마무리는?",a:"땀범벅인 채 여운에 건배",b:"조용한 여운을 안고 걷는 밤길"},
+   {q:"자정, 재생 버튼을 누르는 곡은?",a:"기분이 오르는 신나는 곡",b:"감정 깊은 곳까지 잠기는 애틋한 곡"},
+   {q:"사랑 노래를 한 곡만 고른다면?",a:"서로 사랑하는 행복 가득한 노래",b:"이뤄지지 못한 짝사랑의 노래"},
+   {q:"무인도에 하나만 가져간다면?",a:"어쿠스틱 기타",b:"신시사이저"},
+   {q:"당신에게 '좋은 소리'란?",a:"숨소리까지 들리는 생생함",b:"빈틈없는 완벽한 사운드"},
+   {q:"음악 앱을 열면 먼저 보는 것은?",a:"차트와 급상승",b:"'당신을 위한 추천'의 깊숙한 곳"},
+   {q:"페스티벌에서 당신의 동선은?",a:"헤드라이너 무대의 맨 앞줄",b:"작은 무대에서 신인 발굴"},
+  ],
+  types:{
+   AHNO:{name:"선샤인 스트러머",tag:"햇살 어쿠스틱 록",desc:"밝고 에너지 넘치며 생음에 설레는 당신. 모두가 따라 부르는 명곡으로 분위기를 띄우는 태양 같은 존재."},
+   AHNX:{name:"포크 익스플로러",tag:"발굴형 해피 어쿠스틱",desc:"밝고 따뜻한 소리를 좋아하고, 숨은 명밴드를 찾아내 기분을 올리는 호기심 많은 개척자."},
+   AHDO:{name:"댄스플로어 스타",tag:"정통 업리프트 댄스팝",desc:"텐션 높게 반짝이는 전자음에 춤추고 싶은 타입. 모두 아는 앤섬으로 노는 걸 좋아함."},
+   AHDX:{name:"네온 내비게이터",tag:"첨단 하이텐션 일렉트로",desc:"신나는 전자음을 찾아 미지의 트랙을 탐험하는 최전선 리스너."},
+   AENO:{name:"패션 로커",tag:"영혼으로 외치는 정통 록",desc:"열기 속에 애틋함을 품고 밴드의 격정에 감정을 싣는 타입. 명곡으로 가슴을 뜨겁게 하고 싶은 기분."},
+   AENX:{name:"언더그라운드 파이터",tag:"격정형 인디·얼터너티브",desc:"격렬함과 애틋함을 함께 지니고 지하 신의 진짜 열기를 찾는 고집파."},
+   AEDO:{name:"드라마틱 신스",tag:"웅장한 감성 팝",desc:"신나는 전자음 속 드라마와 애틋함을 찾아, 감동적인 앤섬으로 감정을 풀어내고 싶은 기분."},
+   AEDX:{name:"사이버 로맨티스트",tag:"첨예한 다크 일렉트로니카",desc:"격렬함·애틋함·미지를 좇아 깊은 늪을 헤엄치며 차갑고 아름다운 소리를 사랑하는 탐구자."},
+   CHNO:{name:"해피 칠메이커",tag:"편안한 정통 어쿠스틱",desc:"잔잔하고 긍정적이며 따뜻한 생음에 치유되는 당신. 다정한 명곡으로 포근한 행복을 만듦."},
+   CHNX:{name:"멜로우 내추럴리스트",tag:"은신처 포크 / 로파이",desc:"따뜻하고 편안한 소리를 자기 감각으로 찾아내는, 힘을 뺀 고집쟁이."},
+   CHDO:{name:"칠 팝 서퍼",tag:"세련된 정통 칠아웃",desc:"잔잔하고 세련된 전자음을 좋아하며 멋스러운 사운드 위를 편안히 떠다니는 데 능함."},
+   CHDX:{name:"앰비언트 드리머",tag:"발굴형 멜로우 일렉트로니카",desc:"잔잔한 전자음의 바다를 아직 못 들은 소리를 찾아 떠도는 몽상가형 탐험가."},
+   CENO:{name:"멜랑콜리 발라디어",tag:"눈물샘 자극 정통 발라드",desc:"조용히 감정에 잠기고 싶은 당신. 생보컬과 피아노의 애틋함이 곁에 살며시 머물길 바라는 기분."},
+   CENX:{name:"녹턴 포엣",tag:"늦은 밤 인디 포크",desc:"조용한 애틋함을 남몰래 깊이 음미하는, 시인 같은 리스너."},
+   CEDO:{name:"무디 신스웨이버",tag:"애틋함을 두른 정통 신스",desc:"잔잔하고 내성적이며 멜로우한 전자음으로 밤에 혼자 감정을 다스리는 조용한 로맨티스트."},
+   CEDX:{name:"딥 다이버",tag:"심층 멜로우 익스페리멘털",desc:"조용한 전자음의 가장 깊은 곳까지 잠수해 아무도 모르는 소리 세계를 여행하는 고고한 다이버."},
+  },
+  personas:{
+   AHNO:{p:"쉬는 날엔 친구를 불러 페스나 바비큐로. 분위기를 읽고 자연스레 사람을 웃게 하는 모두의 무드메이커.",t:["무드메이커","긍정적","의리파"]},
+   AHNX:{p:"주말엔 빈티지숍과 레코드숍 순례가 낙. 남들이 놓친 '좋은 것'을 찾는 후각을 가진 밝은 고집파.",t:["고집","호기심","마이페이스"]},
+   AHDO:{p:"늘 파티의 중심, 음악이 나오면 가장 먼저 춤추는 사람. 함께 있으면 매일이 작은 축제.",t:["사교적","트렌드 민감","분위기 메이커"]},
+   AHDX:{p:"아무도 모르는 새 소리를 가장 먼저 캐내 유행을 앞서가는 개척자. 늘 안테나를 세운 자극 애호가.",t:["선구자","안테나","자극 추구"]},
+   AENO:{p:"속에 뜨거운 심지를 품고 좋아하는 일엔 전력투구. 결정적 순간 사람을 분기시키는 열혈 타입.",t:["열정파","한결같음","열혈"]},
+   AENX:{p:"메이저보다 진짜 지향. 지하 공연장을 누비며 뜨기 전 재능을 응원하는 강단 있는 외톨이 늑대.",t:["강단","반골","안목"]},
+   AEDO:{p:"감정의 진폭이 크고 기쁨도 슬픔도 전력으로 느끼는 사람. 드라마틱한 순간에 약한 열정적 로맨티스트.",t:["열정적","로맨티스트","감수성"]},
+   AEDX:{p:"밤이 어울리는 예민한 탐구자. 차갑고 아름다운 것에 끌리며 자신만의 세계관을 지님.",t:["내성적","미의식","미스터리"]},
+   CHNO:{p:"잔잔하고 잘 들어주는 사람. 누구와도 안정감을 주며 작은 행복을 음미하는 치유형.",t:["치유형","온화","경청"]},
+   CHNX:{p:"카페 구석에서 나만의 플레이리스트를 키우는 타입. 편안함을 기준으로 고르는 숨은 고집쟁이.",t:["마이페이스","내추럴","숨은 고집"]},
+   CHDO:{p:"세련되고 힘을 뺀 감각의 소유자. 느슨한 모임을 소중히 하는, 함께 있기 편한 자유인.",t:["세련됨","느긋함","좋은 센스"]},
+   CHDX:{p:"공상에 잠기길 좋아하는 몽상가. 조용한 환경에서 집중력을 발휘하고 새 소리와 풍경에 설렘.",t:["몽상가","탐구심","온화"]},
+   CENO:{p:"감정을 안으로 품고 혼자만의 시간에 마음을 정리하는 사람. 타인의 아픔에 예민한 다정한 공감자.",t:["섬세","공감력","내성적"]},
+   CENX:{p:"말과 풍경에 예민한 시인 기질. 고요를 좋아하고 아무에게도 보이지 않는 섬세한 세계를 품음.",t:["시인 기질","섬세","고요를 사랑"]},
+   CEDO:{p:"쿨해 보여도 감정은 깊은 야행성 감성파. 자기 세계에 잠기는 시간을 무엇보다 소중히 함.",t:["쿨함","야행성","로맨티스트"]},
+   CEDX:{p:"사물의 본질과 심연에 끌리는 탐구자. 남이 가지 않는 영역에 잠수하는 유일무이한 감성의 고고한 사람.",t:["탐구자","고고","유일무이"]},
+  },
+  notes:{
+   "Dua Lipa":"반짝이는 댄스팝으로 기분 업","The Weeknd":"애틋함과 비트의 시네마틱 R&B","Bruno Mars":"생밴드의 열기로 한껏 유쾌하게","Adele":"압도적 보컬로 다가오는 발라드","Billie Eilish":"속삭이는 목소리와 저음 몰입","Jack Johnson":"파도처럼 편안한 어쿠스틱","Coldplay":"웅장하고 감성적인 스타디움 록","Ed Sheeran":"기타 한 대의 따뜻함과 팝","Lana Del Rey":"퇴폐적이고 영화 같은 드림팝","Sia":"시원하게 뻗는 감성 팝",
+   "Official髭男dism":"긍정적 멜로디와 탄탄한 연주","King Gnu":"묵직하고 극적, 감정을 흔듦","YOASOBI":"서사적인 질주 보컬","あいみょん":"있는 그대로의 말과 소박한 기타","藤井 風":"세련된 그루브로 편안하게","宇多田ヒカル":"내성적이고 아름다운 일렉 발라드","米津玄師":"다채롭고 서사적인 세계관","Mrs. GREEN APPLE":"청춘 가득한 밴드","back number":"이별 노래는 단연 최고","Vaundy":"장르를 넘나드는 신세대",
+   "NewJeans":"가볍고 산뜻한 Y2K 팝","BLACKPINK":"날카로운 비트와 강한 세계관","IU":"맑은 음색으로 다정히 감쌈","BTS":"다채로운 사운드로 기분 업","Stray Kids":"파워풀하고 공격적인 무대","SEVENTEEN":"행복감 넘치는 일체감","aespa":"근미래적 콘셉트","TWICE":"밝고 친근한 팝","(G)I-DLE":"강한 자기표현","TAEYEON":"맑은 음색의 실력파",
+   "ONE OK ROCK":"뜨겁고 격렬한 에모 록","スピッツ":"부드러운 목소리와 보편적 멜로디","ASIAN KUNG-FU GENERATION":"질주하는 기타록의 정통","ヨルシカ":"문학적이고 애틋한 서사","Radiohead":"실험적이고 내성적인 얼터너티브","Mr.Children":"국민적으로 사랑받는 긍정 록","RADWIMPS":"시적이고 열정적인 밴드","UNISON SQUARE GARDEN":"질주감 있는 테크니컬 록","クリープハイプ":"애틋하고 비뚤어진 가사","サカナクション":"록과 전자의 융합",
+   "DECO*27":"중독성 있는 보컬로이드 팝","wowaka":"초고속 질주 격정 보카록","supercell":"황금기의 싱그러운 멜로디","バルーン":"그늘진 섬세한 애틋함","ハチ":"중독성 있는 전설적 명곡","kemu":"질주하는 서사형 보컬로이드","じん":"카게로우 프로젝트 세계관","ピノキオピー":"풍자와 팝의 공존","Orangestar":"상쾌하고 애틋한 푸른 하늘 사운드","n-buna":"문학적이고 섬세한 멜로디",
+   "Avicii":"고양감 가득한 앤섬 EDM","Porter Robinson":"에모와 행복감의 전자음","Tycho":"노을 같은 앰비언트","Burial":"안개 낀 심야 비트","Calvin Harris":"플로어를 달구는 앤섬","ODESZA":"웅장하고 고양되는 일렉트로니카","Flume":"첨예한 퓨처 비트","Marshmello":"즐거운 페스 EDM","Bonobo":"유기적인 다운템포","Aphex Twin":"전자음악의 귀재",
+  },
+ },
+
+ es:{
+  ui:{brandSub:"Diagnostica tu ánimo y encuentra tu música",
+    startEyebrow:"Personalidad × Música", startTitle:"¿Cómo suena<br>tu estado de ánimo?",
+    startLead:"Responde 12 preguntas por instinto: leeremos tu ánimo en 4 ejes, te asignaremos uno de los 16 tipos musicales y elegiremos una playlist y artistas para ti.",
+    startBtn:"Empezar el test", metaQ:" preguntas", metaAxis:" ejes", metaType:" tipos",
+    backBtn:"← Anterior", keyhint:"Responde con <b>A</b> / <b>B</b> · <b>←</b> para volver",
+    secType:"Tu tipo", secPersona:"Perfil — quién eres",
+    secMood:"Equilibrio de ánimo", secArtist:"Artistas afines", secGenre:"Elige tu género", secPlaylist:"Playlist",
+    allGenres:"Todos", plExact:"Ideal para tu ánimo", plExpand:"Para ampliar el ánimo",
+    plCenter:(g,b,n)=>`— ${g} · ${n} temas en torno a “${b}”`, btnSpotify:"Abrir en Spotify", btnRetry:"Repetir el test",
+    copy:"Copiar resultado", copied:"¡Copiado!", noArtist:"No hay artistas que coincidan.",
+    secChem:"Química de tipos", chemBest:"Alma gemela", chemOpp:"Tu polo opuesto",
+    chemBestDesc:"Misma temperatura, distinto mundo sonoro. Intercambien playlists y el mapa se expande.",
+    chemOppDesc:"Tiene todo lo que a ti te falta. Si llegan a entenderse, serán imparables.",
+    btnCard:"Guardar como imagen",
+    share:(n,c)=>`Mi tipo musical es «${n}» (${c}). #MoodTune`,
+    footer:"MOOD TUNE — DIAGNÓSTICO MUSICAL SEGÚN TU ÁNIMO"},
+  axis:{A:{left:"Eufórico",right:"Tranquilo"},B:{left:"Alegre",right:"Melancólico"},C:{left:"Acústico",right:"Electrónico"},D:{left:"Clásico",right:"Explorador"}},
+  buckets:{AH:"Eufórico × Alegre",AE:"Eufórico × Melancólico",CH:"Tranquilo × Alegre",CE:"Tranquilo × Melancólico"},
+  genres:{west:"Internacional",jpop:"J-POP",kpop:"K-POP",rock:"Rock",vocaloid:"Vocaloid",edm:"Electrónica",anime:"Anime",hiphop:"Hip-Hop",classical:"Clásica",jazz:"Jazz"},
+  kw:{A:{A:["Enérgico","Vibrante","Eufórico"],C:["Sereno","Relajado","Suave"]},B:{H:["Alegre","Luminoso","Positivo"],E:["Nostálgico","Emotivo","Melancólico"]},C:{N:["Acústico","Orgánico","Cálido"],D:["Electrónico","Sintético","Brillante"]},D:{O:["Clásico","Pegadizo","Central"],X:["Vanguardista","De nicho","Experimental"]}},
+  q:[
+   {q:"Suena el despertador. ¿Qué pide tu cuerpo?",a:"Un ritmo que te levante de golpe",b:"Un sonido suave para seguir entre mantas"},
+   {q:"¿Qué tiempo hace hoy dentro de ti?",a:"Despejado — puedo con todo",b:"Algo nublado y nostálgico"},
+   {q:"Ojos cerrados: ¿qué escena te reconforta?",a:"El sudor y el calor de una sala en vivo",b:"Un océano electrónico en los auriculares"},
+   {q:"Una tienda de discos en otra ciudad. Coges…",a:"Un clásico eterno que todos conocen",b:"Un disco desconocido por su portada"},
+   {q:"Viernes por la noche. ¿Tu plan?",a:"A un sitio ruidoso hasta el amanecer",b:"Baño caliente y música para resetear la semana"},
+   {q:"¿Qué buscas en las letras?",a:"Palabras que te empujen hacia adelante",b:"Palabras que acompañen tu tristeza"},
+   {q:"¿Qué momento te pone la piel de gallina?",a:"Una banda fundiéndose en un solo groove",b:"Luces y graves tragándose tu cuerpo"},
+   {q:"Al armar una playlist, tú…",a:"La anclas con éxitos seguros",b:"Solo metes temas que nadie conoce"},
+   {q:"¿Tu banda sonora de camino al trabajo o clase?",a:"Ritmo rápido que alarga el paso",b:"Baladas que ralentizan el paisaje"},
+   {q:"La noche tras una película lacrimógena…",a:"Cambias de ánimo con algo alegre",b:"Te hundes en la resonancia con música"},
+   {q:"¿La textura de sonido que te atrapa?",a:"Madera cálida y cuerdas vibrando en crudo",b:"El brillo pulido de los sintetizadores"},
+   {q:"Cuando la charla gira hacia la música…",a:"Conectas con canciones que todos saben",b:"Revelas en voz baja una joya guardada"},
+   {q:"En el karaoke eres…",a:"El que se levanta y enciende la sala",b:"El que conmueve con una balada"},
+   {q:"¿El final perfecto de un concierto?",a:"Brindar sudando mientras dura la euforia",b:"Volver a pie abrazando el eco en silencio"},
+   {q:"Medianoche. Le das al play a…",a:"Un tema alegre que sube el ánimo",b:"Una canción tierna para sumergirte a fondo"},
+   {q:"Si eliges una sola canción de amor…",a:"La euforia del amor correspondido",b:"Un desamor que duele"},
+   {q:"¿Una sola cosa para una isla desierta?",a:"Una guitarra acústica",b:"Un sintetizador"},
+   {q:"Para ti, «buen sonido» significa…",a:"Tan crudo que se oye la respiración",b:"Una producción impecable, sin fisuras"},
+   {q:"Al abrir tu app de música miras…",a:"Primero listas y tendencias",b:"Lo más hondo de tus recomendaciones"},
+   {q:"¿Tu recorrido en un festival?",a:"Primera fila del cabeza de cartel",b:"Cazar novatos en los escenarios pequeños"},
+  ],
+  types:{
+   AHNO:{name:"Guitarra de Sol",tag:"Rock acústico soleado",desc:"Brillante y enérgico, te emociona el sonido en vivo. Como el sol, animas el ambiente con himnos que todos cantan."},
+   AHNX:{name:"Explorador Folk",tag:"Acústico alegre de joyas ocultas",desc:"Amas el sonido cálido y vivo, con olfato para descubrir bandas que nadie más conoce."},
+   AHDO:{name:"Estrella de la Pista",tag:"Dance-pop que levanta",desc:"Pura energía, listo para bailar con electrónica brillante. Vives por los himnos que todos conocen."},
+   AHDX:{name:"Navegante Neón",tag:"Electro vibrante de vanguardia",desc:"Un oyente de primera fila que caza pistas desconocidas buscando la próxima descarga electrónica."},
+   AENO:{name:"Rockero Apasionado",tag:"Rock clásico que grita desde el alma",desc:"Calor con un núcleo tierno, montado en la furia de una banda. Quieres himnos que enciendan el pecho."},
+   AENX:{name:"Luchador Underground",tag:"Indie / alt feroz",desc:"Intenso y nostálgico, un purista que busca el calor real de la escena underground."},
+   AEDO:{name:"Sintetizador Dramático",tag:"Pop emocional y grandioso",desc:"Buscas drama y anhelo dentro de la gran electrónica, liberando emoción con himnos conmovedores."},
+   AEDX:{name:"Romántico Cyber",tag:"Electrónica oscura de vanguardia",desc:"Un buscador que nada en lo más hondo de intensidad, anhelo y lo desconocido, enamorado del sonido frío y bello."},
+   CHNO:{name:"Creador de Calma",tag:"Acústico clásico acogedor",desc:"Sereno y positivo, te alivia el sonido cálido en vivo. Creas momentos felices con canciones amables."},
+   CHNX:{name:"Naturalista Sereno",tag:"Folk de refugio / lo-fi",desc:"Descubres sonido cálido y fácil según tu propio gusto: un alma relajada con criterio silencioso."},
+   CHDO:{name:"Surfista del Chill",tag:"Chill-out clásico refinado",desc:"Amas la electrónica serena y pulida, flotando a gusto sobre un sonido con estilo."},
+   CHDX:{name:"Soñador Ambiental",tag:"Electrónica suave de joyas ocultas",desc:"Un soñador que vaga por el mar de la electrónica serena buscando sonidos aún inéditos."},
+   CENO:{name:"Baladista Melancólico",tag:"Baladas clásicas que conmueven",desc:"Quieres sumergirte en silencio en la emoción, anhelando que voz y piano se sienten suavemente a tu lado."},
+   CENX:{name:"Poeta Nocturno",tag:"Indie folk de madrugada",desc:"De corazón poeta, saboreas la tristeza serena, hondo y a solas."},
+   CEDO:{name:"Synthwave Melancólico",tag:"Synth clásico envuelto en nostalgia",desc:"Sereno e introspectivo, un romántico callado que ordena su ánimo de noche con electrónica suave."},
+   CEDX:{name:"Buceador Profundo",tag:"Experimental suave y profundo",desc:"Buceas al punto más hondo de la electrónica serena, viajero solitario de sonidos que nadie conoce."},
+  },
+  personas:{
+   AHNO:{p:"En tus días libres reúnes amigos para festivales o asados. Lees el ambiente y haces sonreír: el alma de la fiesta.",t:["Anima al grupo","Positivo","Buen amigo"]},
+   AHNX:{p:"El finde, tiendas vintage y de discos. Tienes olfato para lo 'bueno' que otros pasan por alto: alegre pero exigente.",t:["Exigente","Curioso","A su ritmo"]},
+   AHDO:{p:"Siempre en el centro de la fiesta, el primero en bailar. A tu lado cada día se vuelve un pequeño festival.",t:["Sociable","Al día","Anima todo"]},
+   AHDX:{p:"Desentierras sonidos nuevos antes que nadie, pionero que anticipa tendencias con la antena siempre alta.",t:["Pionero","Antena","Busca emoción"]},
+   AENO:{p:"Un núcleo ardiente por dentro, todo a fondo en lo que amas. El tipo que enciende a la gente en el momento clave.",t:["Apasionado","Fiel","Ardiente"]},
+   AENX:{p:"Más auténtico que mainstream. Frecuentas salas pequeñas y apoyas talento antes de que estalle: lobo solitario firme.",t:["Firme","Rebelde","Con criterio"]},
+   AEDO:{p:"Grandes vaivenes: vives alegría y pena a tope, un romántico apasionado débil ante lo dramático.",t:["Apasionado","Romántico","Sensible"]},
+   AEDX:{p:"Un buscador de sentidos finos al que le va la noche, atraído por la belleza fría y con un mundo propio.",t:["Introspectivo","Estético","Misterioso"]},
+   CHNO:{p:"Sereno y gran oyente. Das calma a todos y saboreas las pequeñas alegrías: una presencia que reconforta.",t:["Reconfortante","Apacible","Buen oyente"]},
+   CHNX:{p:"Del tipo que cultiva una playlist propia en un rincón de café, eligiendo por comodidad: exigente en silencio.",t:["A su ritmo","Natural","Exigente discreto"]},
+   CHDO:{p:"Estilo con buen gusto y sin esfuerzo. Valoras los encuentros relajados: un espíritu libre fácil de tratar.",t:["Con estilo","Relajado","Buen gusto"]},
+   CHDX:{p:"Un soñador al que le gusta divagar, rinde en la calma y se ilusiona con sonidos y paisajes nuevos.",t:["Soñador","Curioso","Apacible"]},
+   CENO:{p:"Guardas lo que sientes y lo ordenas a solas. Sensible al dolor ajeno, un empático tierno.",t:["Sensible","Empático","Introspectivo"]},
+   CENX:{p:"Corazón de poeta, atento a palabras y paisajes. Prefieres la calma y guardas un mundo delicado que nadie ve.",t:["Poético","Delicado","Ama la calma"]},
+   CEDO:{p:"Frío por fuera, hondo por dentro: ave nocturna que atesora el tiempo perdido en su propio mundo.",t:["Sereno","Nocturno","Romántico"]},
+   CEDX:{p:"Atraído por la esencia y lo profundo, buceas donde otros no van, con una sensibilidad única.",t:["Buscador","Solitario","Único"]},
+  },
+  notes:{
+   "Dua Lipa":"Dance-pop brillante que anima","The Weeknd":"R&B cinematográfico de ritmo y anhelo","Bruno Mars":"Pura alegría con calor de banda","Adele":"Voz imponente que reconforta","Billie Eilish":"Voz susurrada y graves envolventes","Jack Johnson":"Acústico tan suave como las olas","Coldplay":"Rock de estadio grandioso y emotivo","Ed Sheeran":"Cantautor cálido y pop","Lana Del Rey":"Dream-pop nostálgico y cinematográfico","Sia":"Voz que se eleva, pop emotivo",
+   "Official髭男dism":"Melodías positivas y buen oficio","King Gnu":"Denso y dramático, conmueve","YOASOBI":"Voces veloces y narrativas","あいみょん":"Palabras honestas y guitarra sencilla","藤井 風":"Groove refinado y agradable","宇多田ヒカル":"Baladas electrónicas bellas e íntimas","米津玄師":"Mundo versátil y narrativo","Mrs. GREEN APPLE":"Banda llena de juventud","back number":"Inigualable en desamor","Vaundy":"Nueva generación sin fronteras",
+   "NewJeans":"Pop Y2K ligero y fresco","BLACKPINK":"Ritmos afilados y fuerte visión","IU":"Voz cristalina que abraza","BTS":"Sonido variado que anima","Stray Kids":"Escena potente y agresiva","SEVENTEEN":"Unión llena de alegría","aespa":"Concepto futurista","TWICE":"Pop alegre y cercano","(G)I-DLE":"Fuerte autoexpresión","TAEYEON":"Voz clara y potente",
+   "ONE OK ROCK":"Emo rock intenso y ardiente","スピッツ":"Voz suave y melodía atemporal","ASIAN KUNG-FU GENERATION":"Guitar-rock veloz de referencia","ヨルシカ":"Narrativa literaria y nostálgica","Radiohead":"Alt-rock experimental e íntimo","Mr.Children":"Rock querido y positivo","RADWIMPS":"Banda poética y apasionada","UNISON SQUARE GARDEN":"Rock técnico y veloz","クリープハイプ":"Letras nostálgicas y retorcidas","サカナクション":"Rock fundido con electrónica",
+   "DECO*27":"Pop Vocaloid adictivo","wowaka":"Vocarock veloz e intenso","supercell":"Melodía fresca de la era dorada","バルーン":"Tristeza delicada y sombría","ハチ":"Temas legendarios y adictivos","kemu":"Vocaloid narrativo y veloz","じん":"El universo de Kagerou Project","ピノキオピー":"Sátira y pop a la vez","Orangestar":"Sonido de cielo azul, fresco y nostálgico","n-buna":"Melodías literarias y delicadas",
+   "Avicii":"EDM eufórico de himnos","Porter Robinson":"Electrónica entre emoción y euforia","Tycho":"Ambient con tonos de atardecer","Burial":"Beats brumosos de madrugada","Calvin Harris":"Himnos que llenan la pista","ODESZA":"Electrónica grandiosa que eleva","Flume":"Future beats afilados","Marshmello":"EDM festivo y divertido","Bonobo":"Downtempo orgánico","Aphex Twin":"Genio de la música electrónica",
+  },
+ },
+};
+
+/* =========================================================
+   ロジック
+   ========================================================= */
+function matchPercent(u,a){let h=0;for(let i=0;i<4;i++)if(u[i]===a[i])h++;return Math.round(55+h*11.25);}
+function hashStr(s){let h=0;for(let i=0;i<s.length;i++)h=(h*31+s.charCodeAt(i))>>>0;return h;}
+// アーティストの4軸コードから紹介キーワードを自動生成（翻訳不要で無限に拡張可能）
+function codeDesc(code,name){
+  const kw=L().kw, ax=['A','B','C','D'];
+  return ax.map((a,i)=>{const arr=kw[a][code[i]]; return arr[hashStr(name+i)%arr.length];}).join(' · ');
+}
+function artistMatches(userCode, genreKey){
+  return ARTISTS.filter(a=>!genreKey||a.g===genreKey)
+    .map(a=>({...a, pct:matchPercent(userCode,a.code)}))
+    .sort((x,y)=>y.pct-x.pct||x.name.localeCompare(y.name)).slice(0,10);
+}
+function bucketsByProximity(base){
+  const d=b=>(base[0]!==b[0]?1:0)+(base[1]!==b[1]?1:0);
+  return ["AH","AE","CH","CE"].sort((x,y)=>d(x)-d(y));
+}
+// タイプ相性: 全軸反転（正反対）と、気分は同じで音の世界が逆（気の合う相棒）
+const AXIS_FLIP={A:'C',C:'A',H:'E',E:'H',N:'D',D:'N',O:'X',X:'O'};
+function invCode(code){ return code.split('').map(c=>AXIS_FLIP[c]).join(''); }
+function bestMatchCode(code){ return code.slice(0,2)+AXIS_FLIP[code[2]]+AXIS_FLIP[code[3]]; }
+
+let lang = "ja";
+let answers = [], idx = 0;
+let currentBucket="AH", currentGenre="west", currentArtistGenre="", currentCode="AHNO";
+let lastScore=null, lastCount=null, screen="start";
+const pad = n => String(n).padStart(2,'0');
+const L = () => I18N[lang];
+
+// 言語切替
+function buildLangSel(){
+  document.getElementById('langsel').innerHTML = LANGS.map(([k,label])=>
+    `<button data-l="${k}" onclick="setLang('${k}')">${label}</button>`).join('');
+}
+function setLang(k){
+  lang=k; document.documentElement.lang=k;
+  document.querySelectorAll('#langsel button').forEach(b=>b.classList.toggle('on',b.dataset.l===k));
+  applyChrome();
+  if(screen==='quiz') render();
+  else if(screen==='result' && lastScore) showResult(currentCode,lastScore,lastCount);
+}
+function applyChrome(){
+  const u=L().ui;
+  document.getElementById('brandSub').textContent=u.brandSub;
+  document.getElementById('startEyebrow').textContent=u.startEyebrow;
+  document.getElementById('startTitle').innerHTML=u.startTitle;
+  document.getElementById('startLead').textContent=u.startLead;
+  document.getElementById('startBtn').textContent=u.startBtn;
+  document.getElementById('metaQ').textContent=u.metaQ;
+  document.getElementById('metaAxis').textContent=u.metaAxis;
+  document.getElementById('metaType').textContent=u.metaType;
+  document.getElementById('backBtn').textContent=u.backBtn;
+  document.getElementById('footer').textContent=u.footer;
+}
+
+function show(id){
+  ['start','quiz','result'].forEach(s=>document.getElementById(s).classList.add('hidden'));
+  const el=document.getElementById(id);
+  el.classList.remove('hidden','fade'); void el.offsetWidth; el.classList.add('fade');
+}
+
+function start(){ answers=[]; idx=0; screen='quiz'; show('quiz'); render(); }
+
+function render(){
+  const D=QDEF[idx], q=L().q[idx];
+  document.getElementById('tline').style.width=(idx/QDEF.length*100)+'%';
+  document.getElementById('qnow').textContent=pad(idx+1);
+  document.getElementById('qaxis').textContent=AX_NAME[D.axis];
+  document.getElementById('qnum').textContent='Q'+pad(idx+1);
+  document.getElementById('qtext').textContent=q.q;
+  document.getElementById('backBtn').style.visibility= idx===0?'hidden':'visible';
+  const opts=document.getElementById('opts'); opts.innerHTML='';
+  [['A',D.a,q.a],['B',D.b,q.b]].forEach(([mark,v,text])=>{
+    const b=document.createElement('button');
+    b.className='opt';
+    b.innerHTML=`<span class="mark">${mark}</span><span>${text}</span>`;
+    b.onclick=()=>choose(D.axis,v);
+    opts.appendChild(b);
+  });
+  document.getElementById('keyhint').innerHTML=L().ui.keyhint;
+  const box=document.querySelector('.question'); box.classList.remove('fade'); void box.offsetWidth; box.classList.add('fade');
+}
+
+function choose(axis,v){ answers[idx]={axis,v}; idx++; if(idx>=QDEF.length) finish(); else render(); }
+function back(){ if(idx>0){ idx--; render(); } }
+
+// キーボード操作: A/B で回答、← で戻る
+document.addEventListener('keydown',e=>{
+  if(screen!=='quiz') return;
+  const k=e.key.toLowerCase();
+  if(k==='a'||k==='b'){
+    const D=QDEF[idx];
+    choose(D.axis, k==='a'?D.a:D.b);
+  } else if(e.key==='ArrowLeft'||e.key==='Backspace'){
+    e.preventDefault(); back();
+  }
+});
+
+function finish(){
+  const score={A:0,B:0,C:0,D:0}, count={A:0,B:0,C:0,D:0};
+  const left={A:'A',B:'H',C:'N',D:'O'};
+  answers.forEach(a=>{ count[a.axis]++; if(a.v===left[a.axis]) score[a.axis]++; });
+  const code=(score.A>=count.A/2?'A':'C')+(score.B>=count.B/2?'H':'E')+
+             (score.C>=count.C/2?'N':'D')+(score.D>=count.D/2?'O':'X');
+  lastScore=score; lastCount=count;
+  showResult(code,score,count);
+}
+
+function showResult(code,score,count){
+  screen='result'; currentCode=code; currentBucket=code.slice(0,2);
+  currentGenre="west"; currentArtistGenre="";
+  const u=L(), T=u.types[code], P=u.personas[code];
+
+  const axisRows=['A','B','C','D'].map(ax=>{
+    const info=u.axis[ax]; const lp=score[ax]/count[ax]; const strong=lp>=0.5;
+    const dot=Math.round((1-lp)*100); // 左寄りの回答が多いほど左極へ
+    return `<div class="axis"><div class="labels">
+      <span class="${strong?'on':'off'}">${info.left}</span>
+      <span class="${strong?'off':'on'}">${info.right}</span></div>
+      <div class="meter"><i style="left:${dot}%"></i></div></div>`;
+  }).join('');
+
+  const aTabs=`<button class="gtab" data-ag="" onclick="selectArtistGenre('')">${u.ui.allGenres}</button>`+
+    GENRE_KEYS.map(g=>`<button class="gtab" data-ag="${g}" onclick="selectArtistGenre('${g}')">${u.genres[g]}</button>`).join('');
+  const gTabs=GENRE_KEYS.map(g=>`<button class="gtab" data-g="${g}" onclick="selectGenre('${g}')">${u.genres[g]}</button>`).join('');
+
+  document.getElementById('result').innerHTML=`
+    <div class="res-head">
+      <div class="eyebrow">${u.ui.secType}</div>
+      <div class="stamps">${code.split('').map(c=>`<span>${c}</span>`).join('')}</div>
+      <h1 class="res-name serif">${T.name}</h1>
+      <div class="res-tag">${T.tag}</div>
+    </div>
+    <p class="res-desc">${T.desc}</p>
+
+    <div class="section-label">${u.ui.secPersona}</div>
+    <div class="persona">
+      <p class="persona-text">${P.p}</p>
+      <div class="ptraits">${P.t.map(t=>`<span>#${t}</span>`).join('')}</div>
+    </div>
+
+    <div class="section-label">${u.ui.secMood}</div>
+    <div class="axes">${axisRows}</div>
+
+    <div class="section-label">${u.ui.secChem}</div>
+    <div class="chem-grid">
+      <div class="chem-card">
+        <div class="chem-role">${u.ui.chemBest}</div>
+        <div class="chem-code">${bestMatchCode(code).split('').join('·')}</div>
+        <div class="chem-name serif">${u.types[bestMatchCode(code)].name}</div>
+        <p>${u.ui.chemBestDesc}</p>
+      </div>
+      <div class="chem-card opp">
+        <div class="chem-role">${u.ui.chemOpp}</div>
+        <div class="chem-code">${invCode(code).split('').join('·')}</div>
+        <div class="chem-name serif">${u.types[invCode(code)].name}</div>
+        <p>${u.ui.chemOppDesc}</p>
+      </div>
+    </div>
+
+    <div class="section-label">${u.ui.secArtist}</div>
+    <div class="gtabs" id="artistTabs">${aTabs}</div>
+    <div class="amatch" id="artistList" style="margin-top:18px;"></div>
+
+    <div class="section-label">${u.ui.secGenre}</div>
+    <div class="gtabs" id="genreTabs">${gTabs}</div>
+
+    <div class="section-label" style="margin-top:30px;">${u.ui.secPlaylist}
+      <span id="plBucket" style="color:var(--sub); text-transform:none; letter-spacing:.02em; font-weight:400; margin-left:8px;"></span>
+    </div>
+    <div class="tracks" id="trackList"></div>
+
+    <div class="res-actions">
+      <a class="btn" id="spotifyBtn" href="#" target="_blank" rel="noopener">${u.ui.btnSpotify}</a>
+      <button class="btn ghost" onclick="downloadCard()">${u.ui.btnCard}</button>
+      <button class="btn ghost" onclick="start()">${u.ui.btnRetry}</button>
+      <button class="copy" onclick="copyResult()">${u.ui.copy}</button>
+    </div>`;
+  document.getElementById('tline').style.width='100%';
+  show('result');
+  selectArtistGenre("");
+  selectGenre("west");
+}
+
+function selectArtistGenre(g){
+  currentArtistGenre=g; const u=L();
+  document.querySelectorAll('#artistTabs .gtab').forEach(b=>b.classList.toggle('on',b.dataset.ag===g));
+  const list=artistMatches(currentCode, g||null);
+  const box=document.getElementById('artistList');
+  if(!list.length){ box.innerHTML=`<p style="color:var(--sub);font-size:13px;padding:12px 0;">${u.ui.noArtist}</p>`; return; }
+  box.innerHTML=list.map((a,i)=>`
+    <div class="arow" style="--i:${i}"><span class="arank">${pad(i+1)}</span>
+      <div class="ainfo">
+        <div class="atop"><b>${a.name}</b><span class="apct">${a.pct}%</span></div>
+        <div class="ameter"><i style="width:${a.pct}%"></i></div>
+        <div class="anote">${u.genres[a.g]} ・ ${codeDesc(a.code,a.name)}</div>
+      </div></div>`).join('');
+}
+
+function selectGenre(key){
+  currentGenre=key; const u=L();
+  document.querySelectorAll('#genreTabs .gtab').forEach(b=>b.classList.toggle('on',b.dataset.g===key));
+  const pools=GENRE_POOLS[key]||{};
+  const exact=pools[currentBucket]||[];
+  // 近い気分から4曲ずつ拾って12曲（計24曲表示、プールは48曲）
+  const rest=bucketsByProximity(currentBucket).filter(b=>b!==currentBucket)
+    .flatMap(b=>(pools[b]||[]).slice(0,4));
+  let n=0;
+  const row=t=>{n++;return `<div class="trow" style="--i:${n}"><span class="tn">${pad(n)}</span>
+      <span class="tt">${t[1]}</span><span class="ta">${t[0]}</span></div>`;};
+  document.getElementById('trackList').innerHTML=
+    `<div class="pl-group">${u.ui.plExact}</div>`+exact.map(row).join('')+
+    `<div class="pl-group">${u.ui.plExpand}</div>`+rest.map(row).join('');
+  document.getElementById('plBucket').textContent=u.ui.plCenter(u.genres[key], u.buckets[currentBucket], exact.length+rest.length);
+  const sq=encodeURIComponent(`${u.genres[key]} ${u.buckets[currentBucket]}`);
+  document.getElementById('spotifyBtn').href=`https://open.spotify.com/search/${sq}`;
+}
+
+/* ===== 結果カード画像の生成（canvas） ===== */
+function cardWrap(x,text,tx,ty,maxW,lh){
+  const hasSpace=text.includes(' ');
+  const toks=hasSpace?text.split(' '):text.split('');
+  const glue=hasSpace?' ':'';
+  let line='', y=ty;
+  for(const t of toks){
+    const test=line?line+glue+t:t;
+    if(x.measureText(test).width>maxW && line){ x.fillText(line,tx,y); line=t; y+=lh; }
+    else line=test;
+  }
+  if(line){ x.fillText(line,tx,y); y+=lh; }
+  return y;
+}
+const CARD_SERIF='"Hiragino Mincho ProN","Yu Mincho","Noto Serif JP",Georgia,serif';
+const CARD_SANS='"Hiragino Kaku Gothic ProN","Yu Gothic","Noto Sans JP",sans-serif';
+
+function buildCard(){
+  const u=L(), T=u.types[currentCode], P=u.personas[currentCode];
+  const W=1080, H=1350, M=80;
+  const cv=document.createElement('canvas'); cv.width=W; cv.height=H;
+  const x=cv.getContext('2d');
+
+  // 紙の背景
+  x.fillStyle='#f4f0e8'; x.fillRect(0,0,W,H);
+  x.strokeStyle='#ddd6c8'; x.lineWidth=2; x.strokeRect(28,28,W-56,H-56);
+
+  // マストヘッド
+  x.fillStyle='#1f1d1a';
+  x.font='600 62px '+CARD_SERIF;
+  x.fillText('Mood Tune', M, 138);
+  x.font='24px '+CARD_SANS; x.fillStyle='#6f6a60'; x.textAlign='right';
+  x.fillText(u.ui.startEyebrow, W-M, 132); x.textAlign='left';
+  // 二重罫線
+  x.fillStyle='#1f1d1a'; x.fillRect(M,170,W-M*2,6); x.fillRect(M,184,W-M*2,2);
+
+  // タイプ見出し
+  x.fillStyle='#b5432e'; x.font='600 26px '+CARD_SANS;
+  x.fillText(u.ui.secType.toUpperCase(), M, 262);
+
+  // スタンプ
+  currentCode.split('').forEach((c,i)=>{
+    const sx=M+i*116+48, sy=352;
+    x.save(); x.translate(sx,sy); x.rotate(((i%2?1:-1)*1.4)*Math.PI/180);
+    x.strokeStyle='#b5432e'; x.lineWidth=4; x.strokeRect(-48,-48,96,96);
+    x.fillStyle='#b5432e'; x.font='700 54px Georgia,serif';
+    x.textAlign='center'; x.textBaseline='middle'; x.fillText(c,0,4);
+    x.restore();
+  });
+  x.textAlign='left'; x.textBaseline='alphabetic';
+
+  // タイプ名（収まるまで縮小）
+  let fs=76;
+  x.font='600 '+fs+'px '+CARD_SERIF;
+  while(x.measureText(T.name).width>W-M*2 && fs>40){ fs-=4; x.font='600 '+fs+'px '+CARD_SERIF; }
+  x.fillStyle='#1f1d1a'; x.fillText(T.name, M, 530);
+  x.fillStyle='#6f6a60'; x.font='30px '+CARD_SANS; x.fillText(T.tag, M, 584);
+  x.fillStyle='#ddd6c8'; x.fillRect(M,624,W-M*2,2);
+
+  // 説明文
+  x.fillStyle='#1f1d1a'; x.font='31px '+CARD_SANS;
+  let y=cardWrap(x, T.desc, M, 690, W-M*2, 52);
+
+  // 性格タグ
+  x.fillStyle='#b5432e'; x.font='600 28px '+CARD_SANS;
+  x.fillText(P.t.map(t=>'#'+t).join('　'), M, y+18);
+  y+=70;
+
+  // Mood Balance
+  x.fillStyle='#b5432e'; x.font='600 24px '+CARD_SANS;
+  x.fillText(u.ui.secMood.toUpperCase(), M, y+30);
+  x.fillStyle='#ddd6c8'; x.fillRect(M,y+46,W-M*2,2);
+  y+=110;
+  ['A','B','C','D'].forEach(ax=>{
+    const info=u.axis[ax];
+    const lp=lastScore?lastScore[ax]/lastCount[ax]:0.5;
+    const strong=lp>=0.5;
+    x.font=(strong?'600 ':'')+'28px '+CARD_SANS;
+    x.fillStyle=strong?'#1f1d1a':'#6f6a60'; x.fillText(info.left, M, y);
+    x.font=(!strong?'600 ':'')+'28px '+CARD_SANS;
+    x.fillStyle=!strong?'#1f1d1a':'#6f6a60'; x.textAlign='right'; x.fillText(info.right, W-M, y); x.textAlign='left';
+    x.fillStyle='#ddd6c8'; x.fillRect(M, y+18, W-M*2, 4);
+    x.fillStyle='#b5432e';
+    x.beginPath(); x.arc(M+(W-M*2)*(1-lp), y+20, 9, 0, Math.PI*2); x.fill();
+    y+=86;
+  });
+
+  // フッター
+  x.fillStyle='#6f6a60'; x.font='22px '+CARD_SANS; x.textAlign='center';
+  x.fillText(u.ui.footer, W/2, H-72); x.textAlign='left';
+  return cv;
+}
+
+function downloadCard(){
+  const cv=buildCard();
+  const a=document.createElement('a');
+  a.download='moodtune_'+currentCode+'_'+lang+'.png';
+  a.href=cv.toDataURL('image/png');
+  a.click();
+}
+
+function copyResult(){
+  const u=L(), name=u.types[currentCode].name;
+  const text=u.ui.share(name,currentCode);
+  if(navigator.clipboard){ navigator.clipboard.writeText(text).then(()=>alert(u.ui.copied+"\n\n"+text)).catch(()=>alert(text)); }
+  else alert(text);
+}
+
+// 初期化
+buildLangSel();
+setLang("ja");
+</script>
+</body>
+</html>
