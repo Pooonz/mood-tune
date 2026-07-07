@@ -1,0 +1,4 @@
+User-agent: *
+Allow: /
+
+Sitemap: https://pooonz.github.io/mood-tune/sitemap.xml
